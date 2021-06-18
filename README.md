@@ -14,7 +14,7 @@ Guarda los datos de los Repos
 - RepoID
 - Estrellas
 - Cantidad de Forks
-- Lenguaje
+- Lenguajes preferidos
 
 Guarda los review
 - reviewID
@@ -48,10 +48,13 @@ Guarda los review
 
 
 Cuando un usuario levanta una repo lo que ve es:
-/repo/#id
+`/repo/#id`
+```json
 {
   "name": Nombre de la repo,
   "link": link a la repo,
   "score": Resultado de nuestra funcion de cuanto le va a gustar la repo a un usuario,
-  "comments": [{ "comment": "repo copada"}, {"comment": "otro comment"}, ... ]
+  "avgUserScore": 3,
+  "comments": [{ "score": 4, "comment": "repo copada"}, {"score": 2, "comment": "otro comment"}, ... ]
 }
+```
