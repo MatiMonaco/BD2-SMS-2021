@@ -51,9 +51,9 @@ Cuando un usuario levanta una repo lo que ve es:
 `/repo/#id`
 ```json
 {
-  "name": Nombre de la repo,
-  "link": link a la repo,
-  "score": Resultado de nuestra funcion de cuanto le va a gustar la repo a un usuario,
+  "name": "Nombre de la repo",
+  "link": "link a la repo",
+  "score": "Resultado de nuestra funcion de cuanto le va a gustar la repo a un usuario",
   "avgUserScore": 3,
   "comments": [{ "score": 4, "comment": "repo copada"}, {"score": 2, "comment": "otro comment"}, ... ]
 }
