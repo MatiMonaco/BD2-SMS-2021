@@ -55,6 +55,6 @@ Cuando un usuario levanta una repo lo que ve es:
   "link": "link a la repo",
   "score": "Resultado de nuestra funcion de cuanto le va a gustar la repo a un usuario",
   "avgUserScore": 3,
-  "comments": [{ "score": 4, "comment": "repo copada"}, {"score": 2, "comment": "otro comment"}, ... ]
+  "comments": [{ "score": 4, "comment": "repo copada"}, {"score": 2, "comment": "otro comment"}, ]
 }
 ```
