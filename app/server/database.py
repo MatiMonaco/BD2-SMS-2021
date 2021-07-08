@@ -7,6 +7,8 @@ from bson.objectid import ObjectId
 MONGO_DETAILS = "mongodb://localhost:27017"
 NEO4J_DETAILS = "neo4j://localhost:7474"
 
+
+
 class MongoClient:
     def __init__(self,port: int):
         self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
@@ -67,7 +69,10 @@ class MongoClient:
         return new_comment
 
     async def get_repos(self, query_options: dict):
-        repos = await self.repos_collection.find(query_options)
+        //TODO: ver como se haria paginado
+        repos = []
+        async for repo in self.repos_collection.find(query_options):
+            repos.append(repo)
         return repos
 
     async def get_repo(self, query_options: dict):
@@ -153,7 +158,8 @@ class Neo4jClient:
     
     
 
-
+mongo_client = MongoClient(27017)
+neo_client = Neo4jClient(7687,'admin', 'admin')
 
 
 
