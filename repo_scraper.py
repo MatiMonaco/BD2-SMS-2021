@@ -3,7 +3,7 @@ from github import Github
 from pprint import pprint
 import json
 
-g = Github('Insert your token here')
+g = Github('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')
 g.per_page = 100
 print(g.rate_limiting)
 
@@ -16,7 +16,9 @@ for q in range(0, amount_of_queries):
     repos = g.search_repositories(f"stars:1..{last_max - 1}", sort='stars', order='desc')
     try:
         for repo in repos:
+            languages = list(repo.get_languages().keys())
             data.append({
+                'github_repo_id': repo.id,
                 'full_name': repo.full_name,
                 'name': repo.name,
                 'owner': repo.owner.url,
@@ -24,6 +26,7 @@ for q in range(0, amount_of_queries):
                 'forks_count': repo.forks_count,
                 'created_at': str(repo.created_at),
                 'updated_at': str(repo.updated_at),
+                'languages': languages,
                 'html_url': repo.html_url,
                 'contributors_url': repo.contributors_url
             })
@@ -35,6 +38,6 @@ for q in range(0, amount_of_queries):
         print("Ups hice mierda el limite")
     sleep(60)
 
-with open('data.json', 'w') as outfile:
+with open('resources/data.json', 'w') as outfile:
     json.dump(data, outfile)
 print(len(data))
