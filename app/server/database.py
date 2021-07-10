@@ -1,7 +1,10 @@
 import motor.motor_asyncio
 from neo4j import GraphDatabase
+import logging
 from bson.objectid import ObjectId
-
+from neo4j.exceptions import ServiceUnavailable
+from fastapi.encoders import jsonable_encoder
+import math
 # mongodb
 
 MONGO_DETAILS = "mongodb://localhost:27017"
@@ -11,11 +14,12 @@ NEO4J_DETAILS = "neo4j://localhost:7474"
 
 class MongoClient:
     def __init__(self,port: int):
+        #TODO: crear indice en fullname 
         self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
         self.network_db = self.mongo_client['network']
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
-        self.comments_collection = self.network_db.get_collection("comments")
+        self.reviews_collection = self.network_db.get_collection("reviews")
     
     @staticmethod
     def _repo_helper(repo_data: dict):
@@ -46,11 +50,12 @@ class MongoClient:
         }
 
     @staticmethod
-    def _comment_helper(comment_data: dict):
+    def _review_helper(review_data: dict):
+        # Autoassign _id
         return {
-            '_id': comment_data['_id'],
-            'score': comment_data['score'],
-            'comment': comment_data['comment']
+            'score': review_data['score'],
+            'comment': review_data['comment'],
+            'created_at': review_data['created_at']
         }
     
     async def insert_repo(self,repo_data: dict):
@@ -63,33 +68,47 @@ class MongoClient:
         new_user = await self.users_collection.find_one({"_id": user.inserted_id})
         return new_user
     
-    async def insert_comment(self,comment_data: dict):
-        comment = await self.comments_collection.insert_one(MongoClient._comment_helper(comment_data))
-        new_comment = await self.comments_collection.find_one({"_id": comment.inserted_id})
-        return new_comment
+    async def insert_review(self,review_data: dict):
+        review = await self.reviews_collection.insert_one(MongoClient._review_helper(review_data))
+        print(review.inserted_id)
+        new_review = await self.reviews_collection.find_one({"_id": review.inserted_id})
+        new_review['_id'] = str(new_review['_id'])
+        return new_review
 
-    async def get_repos(self, query_options: dict):
-        //TODO: ver como se haria paginado
+    async def get_repos(self, order_by: str, asc: bool, page: int, limit: int):
         repos = []
-        async for repo in self.repos_collection.find(query_options):
+        total = await self.repos_collection.count_documents({})
+        total_pages = math.ceil(total/limit) - 1
+        asc_val = 1 if asc else -1
+        async for repo in self.repos_collection.find(sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
+            print(repo)
             repos.append(repo)
-        return repos
+        return repos,total_pages
 
-    async def get_repo(self, query_options: dict):
-        repo = await self.repos_collection.find_one(query_options)
+    async def get_repo(self, username: str, reponame: str):
+        full_name = username + '/' + reponame
+        # repo = await self.repos_collection.find_one({'full_name': full_name})
+        repo = await self.repos_collection.find_one({'full_name': {'$regex': '^{}$'.format(full_name),'$options': 'i'}})
         return repo
 
     async def get_users(self, query_options: dict):
         users = await self.users_collection.find(query_options)
         return users
 
-    async def get_user(self, query_options: dict):
-        user = await self.users_collection.find_one(query_options)
+    async def get_user(self, username: str):
+        user = await self.users_collection.find_one({'username': {'$regex': '^{}$'.format(username),'$options': 'i'}})
         return user
 
-    async def get_comments(self, query_options: dict):
-        comments = await self.comments_collection.find(query_options)
-        return comments
+    async def get_reviews(self, review_ids, order_by: str, asc: bool, page: int, limit: int):
+        reviews = []
+        total = await self.reviews_collection.count_documents({})
+        total_pages = math.ceil(total/limit) - 1
+        review_ids = [ObjectId(id) for id in review_ids]
+        asc_val = 1 if asc else -1
+        async for review in self.reviews_collection.find({"_id": {"$in": review_ids}},sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
+            review['_id'] = str(review['_id'])
+            reviews.append(review)
+        return reviews,total_pages
 
 
 # neo4j
@@ -103,6 +122,24 @@ class Neo4jClient:
         self.driver.close()
     
     @staticmethod
+    def _create_and_return_relation_with_id(tx, o1_id, o1_label, o2_id, o2_label, relation_label, relation_id):
+        query = (
+            "MERGE (o1:" + o1_label + " { id: $o1_id }) "
+            "MERGE  (o2:" + o2_label + " { id: $o2_id }) "
+            "CREATE (o1)-[r:" + relation_label + " { id: $relation_id }]->(o2) "
+            "RETURN o1, r, o2"
+        )
+        result = tx.run(query, o1_id=o1_id, o2_id=o2_id, relation_id=relation_id)
+        try:
+            return [{"o1": record["o1"]["id"], "r": record["r"]["id"], "o2": record["o2"]["id"]}
+                    for record in result]
+        # Capture any errors along with the query and data for traceability
+        except ServiceUnavailable as exception:
+            logging.error("{query} raised an error: \n {exception}".format(
+                query=query, exception=exception))
+            raise
+
+    @staticmethod
     def _create_and_return_relation(tx, o1_id, o1_label, o2_id, o2_label, relation_label):
         query = (
             "MERGE (o1:" + o1_label + " { id: $o1_id }) "
@@ -110,7 +147,7 @@ class Neo4jClient:
             "CREATE (o1)-[:" + relation_label + "]->(o2) "
             "RETURN o1, o2"
         )
-        result = tx.run(query, o1_label=o1_label, o1_id=o1_id, o2_label=o2_label, o2_id=o2_id, relation_label=relation_label)
+        result = tx.run(query, o1_id=o1_id, o2_id=o2_id)
         try:
             return [{"o1": record["o1"]["id"], "o2": record["o2"]["id"]}
                     for record in result]
@@ -124,7 +161,7 @@ class Neo4jClient:
         with self.driver.session() as session:
             # Write transactions allow the driver to handle retries and transient errors
             result = session.write_transaction(
-                Neo4jClient._create_and_return_relation, owner_id, "Person", repo_id, "Repository", "OWNS")
+                self._create_and_return_relation, owner_id, "Person", repo_id, "Repository", "OWNS")
             for record in result:
                 print("Created ownership between: {o1}, {o2}".format(
                     o1=record['o1'], o2=record['o2']))
@@ -133,7 +170,7 @@ class Neo4jClient:
         with self.driver.session() as session:
             # Write transactions allow the driver to handle retries and transient errors
             result = session.write_transaction(
-                Neo4jClient._create_and_return_relation, contributor_id, "Person", repo_id, "Repository", "CONTRIBUTES_IN")
+                self._create_and_return_relation, contributor_id, "Person", repo_id, "Repository", "CONTRIBUTES_IN")
             for record in result:
                 print("Created contribution between: {o1}, {o2}".format(
                     o1=record['o1'], o2=record['o2']))
@@ -142,21 +179,73 @@ class Neo4jClient:
         with self.driver.session() as session:
             # Write transactions allow the driver to handle retries and transient errors
             result = session.write_transaction(
-                Neo4jClient._create_and_return_relation, follower_id, "Person", person_id, "Person", "FOLLOWS")
+                self._create_and_return_relation, follower_id, "Person", person_id, "Person", "FOLLOWS")
             for record in result:
                 print("Created following between: {o1}, {o2}".format(
                     o1=record['o1'], o2=record['o2']))
 
-    def create_review(self, person_id, repo_id):
+    def create_review(self, person_id: int, repo_id: int, review_id: str):
         with self.driver.session() as session:
             # Write transactions allow the driver to handle retries and transient errors
             result = session.write_transaction(
-                Neo4jClient._create_and_return_relation, person_id, "Person", repo_id, "Repository", "REVIEWS")
+                self._create_and_return_relation_with_id, person_id, "Person", repo_id, "Repository", "REVIEWS",review_id)
             for record in result:
-                print("Created review between: {o1}, {o2}".format(
-                    o1=record['o1'], o2=record['o2']))
+                print("Created review between: {o1}, {o2} with id: {r}".format(
+                    o1=record['o1'], o2=record['o2'],r=record['r']))
     
+    def get_reviews_for_repo(self,repo_id):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person)-[r:REVIEWS]->(o2:Repository { id: $repo_id }) "
+            "RETURN r "
+            )
+            result = session.read_transaction(
+                self._get_relation, query, repo_id=repo_id)
+            for record in result:
+                print("Found reviews {r} for repository {repo}".format(
+                    r=record, repo=repo_id))
+            return None if not result else result
+
+
+    def get_review(self, person_id, repo_id):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person { id: $o1_id })-[r:REVIEW]->(o2:Repository { id: $o2_id })"
+            "RETURN r"
+            )
+            result = session.read_transaction(
+                self._get_relation, query, o1_id=person_id, o2_id=repo_id)
+            for record in result:
+                print("Found review between: {o1}, {o2} with id: {r}".format(
+                    o1=person_id, o2=repo_id,r=record))
+            return None if not result else result[0]
     
+    @staticmethod
+    def _get_relation(tx, query, **kargs):
+        # print(**kargs)
+        result = tx.run(query, **kargs)
+        try:
+            return [record["r"]["id"] for record in result]
+        # Capture any errors along with the query and data for traceability
+        except ServiceUnavailable as exception:
+            logging.error("{query} raised an error: \n {exception}".format(
+                query=query, exception=exception))
+            raise
+
+    # @staticmethod
+    # def _get_relation(tx, o1_id, o1_label, o2_id, o2_label, relation_label):
+    #     query = (
+    #         "MATCH (o1:" + o1_label + " { id: $o1_id })-[r:" + relation_label + "]->(o2:" + o2_label + " { id: $o2_id })"
+    #         "RETURN r"
+    #     )
+    #     result = tx.run(query, o1_id=o1_id, o2_id=o2_id)
+    #     try:
+    #         return [record["r"]["id"] for record in result]
+    #     # Capture any errors along with the query and data for traceability
+    #     except ServiceUnavailable as exception:
+    #         logging.error("{query} raised an error: \n {exception}".format(
+    #             query=query, exception=exception))
+    #         raise
 
 mongo_client = MongoClient(27017)
 neo_client = Neo4jClient(7687,'admin', 'admin')

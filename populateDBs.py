@@ -5,10 +5,6 @@ from pprint import pprint
 mongoClient = MongoClient(27017)
 neoClient = Neo4jClient(7687,'admin', 'admin')
 
-
-
-
-
 async def insert_data():
     with open('resources/updated_data.json', 'r') as repos_json:
         repo_data = json.load(repos_json)
