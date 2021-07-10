@@ -95,6 +95,52 @@ class MongoClient:
         users = await self.users_collection.find(query_options)
         return users
 
+    async def get_users_by_id(self, user_ids: list, page: int, limit: int):
+        users = []
+        total = await self.users_collection.count_documents({"_id": {"$in": user_ids}})
+        aux = []
+        async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
+            aux.append(user)
+        print(len(aux))
+        print(len(user_ids))
+        print(total)
+        total_pages = math.ceil(total/limit) - 1
+        pipeline = [
+            {"$match": 
+                {"_id": {"$in": user_ids}}
+            },
+            { "$project" : {
+            "_id" : 1,
+            "username" : 1,
+            "name" : 1,
+            'avatar_url': 1,
+            'bio': 1,
+            'languages': 1,
+            'following': 1,
+            'followers': 1,
+            'html_url': 1,
+            "score" : {
+                "$sum" : [
+                    {"$multiply": 
+                        [{"$size": "$languages"},0.7]
+                    },
+                    {"$multiply": 
+                        ["$followers",0.2]
+                    },
+                ]
+            }
+            } 
+            }, 
+            {"$sort" : {"score" : -1} },
+            {"$skip": page*limit},
+            {"$limit": limit}
+        ]
+        async for user in self.users_collection.aggregate(pipeline):
+            users.append(user)
+        # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
+        #     users.append(user)
+        return users, total_pages
+
     async def get_user(self, username: str):
         user = await self.users_collection.find_one({'username': {'$regex': '^{}$'.format(username),'$options': 'i'}})
         return user
@@ -231,6 +277,40 @@ class Neo4jClient:
             logging.error("{query} raised an error: \n {exception}".format(
                 query=query, exception=exception))
             raise
+    
+    @staticmethod
+    def _get_nodes(tx, query, *to_return, **kargs):
+        # print(**kargs)
+        result = tx.run(query, **kargs)
+        try:
+            response = []
+            for record in result:
+                response.append({})
+                last_dict = response[-1]
+                for object in to_return:
+                    last_dict[object] = record[object]["id"]
+            print(response)
+            return response
+        # Capture any errors along with the query and data for traceability
+        except ServiceUnavailable as exception:
+            logging.error("{query} raised an error: \n {exception}".format(
+                query=query, exception=exception))
+            raise
+
+    def get_recommended_users(self,id: int, depth: int):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS*1.." + str(depth) + "]-(o:Person)"
+            "RETURN DISTINCT o"
+            )
+            result = session.read_transaction(
+                self._get_nodes, query, "o", o1_id=id)
+            for record in result:
+                print("Found following user with id {p} for id {id}".format(
+                    p=record["o"], id=id))
+            print(list(map(lambda elem: elem["o"],result)))
+            print(len(result))
+            return None if not result else list(map(lambda elem: elem["o"],result))
 
     # @staticmethod
     # def _get_relation(tx, o1_id, o1_label, o2_id, o2_label, relation_label):

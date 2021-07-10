@@ -5,7 +5,7 @@ app = FastAPI()
 
 
 app.include_router(ReposRouter, tags=["Repos"], prefix="/repos")
-#app.include_router(UsersRouter, tags=["Users"], prefix="/repos")
+app.include_router(UsersRouter, tags=["Users"], prefix="/users")
 @app.get("/", tags=["Root"])
 async def root():
     return {"message": "Hello World"}
