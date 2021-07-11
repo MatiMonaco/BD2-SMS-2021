@@ -104,7 +104,7 @@ class MongoClient:
         return users
     
     async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, page: int, limit: int):
-        users = []
+        repos = []
         print(f"repo ids: {repo_ids}")
         total = await self.repos_collection.count_documents({"_id": {"$in": repo_ids}})
         # aux = []
@@ -144,11 +144,13 @@ class MongoClient:
             {"$skip": page*limit},
             {"$limit": limit}
         ]
-        async for user in self.repos_collection.aggregate(pipeline):
-            users.append(user)
+        async for repo in self.repos_collection.aggregate(pipeline):
+            full_name = repo['full_name'].split('/')
+            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            repos.append(repo)
         # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
         #     users.append(user)
-        return users, total_pages
+        return repos, total_pages
 
     async def get_user_recommendations_by_id(self, user: dict, user_ids: list, page: int, limit: int):
         users = []
