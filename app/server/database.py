@@ -96,21 +96,68 @@ class MongoClient:
         full_name = username + '/' + reponame
         # repo = await self.repos_collection.find_one({'full_name': full_name})
         repo = await self.repos_collection.find_one({'full_name': {'$regex': '^{}$'.format(full_name),'$options': 'i'}})
-        repo['reviews_url'] = f"http://{server_url=}:{server_port=}/repos/{full_name[0]}/{full_name[1]}/reviews"
+        repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
     async def get_users(self, query_options: dict):
         users = await self.users_collection.find(query_options)
         return users
+    
+    async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, page: int, limit: int):
+        users = []
+        print(f"repo ids: {repo_ids}")
+        total = await self.repos_collection.count_documents({"_id": {"$in": repo_ids}})
+        # aux = []
+        # async for user in self.repos_collection.find({"_id": {"$in": repo_ids}}):
+        #     aux.append(user)
+        # print(len(aux))
+        # print(len(repo_ids))
+        total_pages = math.ceil(total/limit)
+        # user_langs = user['languages']
+        pipeline = [
+            {"$match": 
+                {"_id": {"$in": repo_ids}}
+            },
+            { "$project" : {
+            "_id" : 1,
+            "name":1,
+            "full_name": 1,
+            "stars": 1,
+            "languages": 1,
+            "created_at": 1,
+            "updated_at": 1,
+            "forks_count": 1,
+            "html_url": 1,
+            "score" : {
+                "$sum" : [
+                    # {"$multiply": 
+                    #     [{"$size": "$stars"},0.7]
+                    # },
+                    {"$multiply": 
+                        ["$stars",0.2]
+                    },
+                ]
+            }
+            } 
+            }, 
+            {"$sort" : {"score" : -1} },
+            {"$skip": page*limit},
+            {"$limit": limit}
+        ]
+        async for user in self.repos_collection.aggregate(pipeline):
+            users.append(user)
+        # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
+        #     users.append(user)
+        return users, total_pages
 
     async def get_user_recommendations_by_id(self, user: dict, user_ids: list, page: int, limit: int):
         users = []
         total = await self.users_collection.count_documents({"_id": {"$in": user_ids}})
-        aux = []
-        async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
-            aux.append(user)
-        print(len(aux))
-        print(len(user_ids))
+        # aux = []
+        # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
+        #     aux.append(user)
+        # print(len(aux))
+        # print(len(user_ids))
         print(total)
         total_pages = math.ceil(total/limit)
         user_langs = user['languages']
@@ -317,9 +364,25 @@ class Neo4jClient:
             for record in result:
                 print("Found following user with id {p} for id {id}".format(
                     p=record["o"], id=id))
-            print(list(map(lambda elem: elem["o"],result)))
+            # print(list(map(lambda elem: elem["o"],result)))
             print(len(result))
             return None if not result else list(map(lambda elem: elem["o"],result))
+
+    def get_recommended_repos(self,id: int, depth: int):
+        recommended_users_ids = self.get_recommended_users(id,depth)
+        with self.driver.session() as session:
+            query = (
+                "MATCH (n:Person)-[:CONTRIBUTES_IN|:OWNS]-(r:Repository) WHERE ANY(user_id IN " + str(recommended_users_ids) + " WHERE user_id = n.id) AND NOT EXISTS{MATCH (p:Person {id: $u_id})-[:CONTRIBUTES_IN|:OWNS]-(:Repository {id: r.id})} "
+                "RETURN DISTINCT r"
+            )
+            result = session.read_transaction(
+                self._get_nodes, query, "r", u_id=id)
+            for record in result:
+                print("Found following user repos with id {r} where user with id {id} doesn't contribute/own".format(
+                    r=record["r"], id=id))
+            # print(list(map(lambda elem: elem["r"],result)))
+            print(len(result))
+            return None if not result else list(map(lambda elem: elem["r"],result))
 
     # @staticmethod
     # def _get_relation(tx, o1_id, o1_label, o2_id, o2_label, relation_label):
