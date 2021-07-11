@@ -21,10 +21,10 @@ async def get_recommended_repos(username: str):
 
 
 @router.get("/{username}/recommended/users", response_description="Users retrieved")
-async def get_recommended_users(username: str, depth: int = 1, page: int = 0, limit: int = 10):
+async def get_recommended_users(username: str, depth: int = 1, page: int = 1, limit: int = 10):
 	user = await mongo_client.get_user(username)
 	if user:
 		recommended_ids = neo_client.get_recommended_users(user['_id'], depth=depth)
-		users, total_pages = await mongo_client.get_users_by_id(recommended_ids, page, limit)
+		users, total_pages = await mongo_client.get_user_recommendations_by_id(user,recommended_ids, page-1, limit)
 		return PaginatedResponseModel(users, page, limit, total_pages)
 	return ResponseModel(user, StatusCodeEnum.OK.value, "Empty list returned")

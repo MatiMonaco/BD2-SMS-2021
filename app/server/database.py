@@ -5,11 +5,16 @@ from bson.objectid import ObjectId
 from neo4j.exceptions import ServiceUnavailable
 from fastapi.encoders import jsonable_encoder
 import math
-# mongodb
+import json
 
+with open("app/config.json") as file:
+    config = json.load(file)
+    server_url = config["server_url"]
+    server_port = config["server_port"]
+
+# mongodb
 MONGO_DETAILS = "mongodb://localhost:27017"
 NEO4J_DETAILS = "neo4j://localhost:7474"
-
 
 
 class MongoClient:
@@ -78,10 +83,12 @@ class MongoClient:
     async def get_repos(self, order_by: str, asc: bool, page: int, limit: int):
         repos = []
         total = await self.repos_collection.count_documents({})
-        total_pages = math.ceil(total/limit) - 1
+        total_pages = math.ceil(total/limit)
         asc_val = 1 if asc else -1
         async for repo in self.repos_collection.find(sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
             print(repo)
+            full_name = repo['full_name'].split('/')
+            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
             repos.append(repo)
         return repos,total_pages
 
@@ -89,13 +96,14 @@ class MongoClient:
         full_name = username + '/' + reponame
         # repo = await self.repos_collection.find_one({'full_name': full_name})
         repo = await self.repos_collection.find_one({'full_name': {'$regex': '^{}$'.format(full_name),'$options': 'i'}})
+        repo['reviews_url'] = f"http://{server_url=}:{server_port=}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
     async def get_users(self, query_options: dict):
         users = await self.users_collection.find(query_options)
         return users
 
-    async def get_users_by_id(self, user_ids: list, page: int, limit: int):
+    async def get_user_recommendations_by_id(self, user: dict, user_ids: list, page: int, limit: int):
         users = []
         total = await self.users_collection.count_documents({"_id": {"$in": user_ids}})
         aux = []
@@ -104,7 +112,8 @@ class MongoClient:
         print(len(aux))
         print(len(user_ids))
         print(total)
-        total_pages = math.ceil(total/limit) - 1
+        total_pages = math.ceil(total/limit)
+        user_langs = user['languages']
         pipeline = [
             {"$match": 
                 {"_id": {"$in": user_ids}}
@@ -148,7 +157,7 @@ class MongoClient:
     async def get_reviews(self, review_ids, order_by: str, asc: bool, page: int, limit: int):
         reviews = []
         total = await self.reviews_collection.count_documents({})
-        total_pages = math.ceil(total/limit) - 1
+        total_pages = math.ceil(total/limit)
         review_ids = [ObjectId(id) for id in review_ids]
         asc_val = 1 if asc else -1
         async for review in self.reviews_collection.find({"_id": {"$in": review_ids}},sort=[(order_by,asc_val)],skip=page*limit, limit=limit):

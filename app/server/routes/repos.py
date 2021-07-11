@@ -25,8 +25,8 @@ class RepoOrderBy(str, Enum):
 
 router = APIRouter()
 @router.get("/", response_description="Repos retrieved")
-async def get_repos(order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = False, page: int = 0, limit: int = 10):
-    repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page,limit)
+async def get_repos(order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
+    repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
     if repos:
         return PaginatedResponseModel(repos, page, limit, total_pages)
     return ResponseModel(repos, StatusCodeEnum.OK.value, "Empty list returned")
@@ -39,15 +39,15 @@ async def get_repo_by_name_and_username(username: str, reponame: str):
     #TODO: change to NOT FOUND, change message
     return ResponseModel(repos, StatusCodeEnum.OK.value, "Empty list returned")
 
-@router.get("/{username}/{reponame}/review", response_description="Retrieved reviews for requested repository")
-async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 0, limit: int = 10):
+@router.get("/{username}/{reponame}/reviews", response_description="Retrieved reviews for requested repository")
+async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
     repo = await mongo_client.get_repo(username, reponame)
     if repo:
         repo_id = repo['_id']
         # reviews, total_pages = await mongo_client.get_repos(page,limit)
         review_ids = neo_client.get_reviews_for_repo(repo_id)
         if review_ids:
-            reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page,limit)
+            reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page-1,limit)
             return PaginatedResponseModel(reviews,page,limit,total_pages)
     return ResponseModel(review_ids, StatusCodeEnum.OK.value, "Empty list returned")
 
