@@ -113,7 +113,7 @@ class MongoClient:
         # print(len(aux))
         # print(len(repo_ids))
         total_pages = math.ceil(total/limit)
-        # user_langs = user['languages']
+        user_langs = user['languages']
         pipeline = [
             {"$match": 
                 {"_id": {"$in": repo_ids}}
@@ -136,6 +136,12 @@ class MongoClient:
                     {"$multiply": 
                         ["$stars",0.2]
                     },
+                    {"$multiply": 
+                        ["$forks_count",0.2]
+                    },
+                    # {"$multiply": 
+                    #     ["$updated_at.getTime()",0.2]
+                    # },
                 ]
             }
             } 
@@ -147,6 +153,9 @@ class MongoClient:
         async for repo in self.repos_collection.aggregate(pipeline):
             full_name = repo['full_name'].split('/')
             repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            matches = len([lang for lang in user_langs if lang in repo['languages']])
+            repo['score'] = repo['score'] + float(matches) * 0.5
+            print(repo['score'])
             repos.append(repo)
         # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
         #     users.append(user)
@@ -193,10 +202,10 @@ class MongoClient:
             {"$skip": page*limit},
             {"$limit": limit}
         ]
-        async for user in self.users_collection.aggregate(pipeline):
-            users.append(user)
-        # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
-        #     users.append(user)
+        async for rec_user in self.users_collection.aggregate(pipeline):
+            matches = len([lang for lang in user_langs if lang in rec_user['languages']])
+            rec_user['score'] += float(matches) * 0.5
+            users.append(rec_user)
         return users, total_pages
 
     async def get_user(self, username: str):
@@ -354,11 +363,12 @@ class Neo4jClient:
             logging.error("{query} raised an error: \n {exception}".format(
                 query=query, exception=exception))
             raise
-
+    
+    # TODO: Deberia buscar todos los usuarios en la profundidad especificada menos los usuarios en la profundidad 1 ya que esos usuarios ya son seguidos 
     def get_recommended_users(self,id: int, depth: int):
         with self.driver.session() as session:
             query = (
-            "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS*1.." + str(depth) + "]-(o:Person)"
+            "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS*2.." + str(depth) + "]-(o:Person)"
             "RETURN DISTINCT o"
             )
             result = session.read_transaction(
