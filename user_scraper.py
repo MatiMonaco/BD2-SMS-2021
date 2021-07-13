@@ -11,6 +11,7 @@ users = {}
 
 
 def add_to_dict(users, user, curr_depth, max_depth=2):
+    
     if user.login not in users and curr_depth <= max_depth:
         print(f"creating user {user.login}")
         users[user.login]={
@@ -33,8 +34,10 @@ def add_to_dict(users, user, curr_depth, max_depth=2):
                 if i > 10:
                     break
                 print(f"trying to create {follow.login} followed by {user.login}")
-                add_to_dict(users, follow, curr_depth+1)
-                users[user.login]["following_user_ids"].append(follow.id)
+                next_depth = curr_depth+1
+                if next_depth < max_depth:
+                    add_to_dict(users, follow, curr_depth+1)
+                    users[user.login]["following_user_ids"].append(follow.id)   
 
 
 with open('resources/data.json', 'r') as file:

@@ -6,6 +6,8 @@ from neo4j.exceptions import ServiceUnavailable
 from fastapi.encoders import jsonable_encoder
 import math
 import json
+import time
+from datetime import datetime
 
 with open("app/config.json") as file:
     config = json.load(file)
@@ -15,6 +17,11 @@ with open("app/config.json") as file:
 # mongodb
 MONGO_DETAILS = "mongodb://localhost:27017"
 NEO4J_DETAILS = "neo4j://localhost:7474"
+
+def normalize_data(data, max):
+    # if max-min == 0: return 0
+    return float(data)/float(max) if max != 0 else 0
+
 
 
 class MongoClient:
@@ -103,7 +110,29 @@ class MongoClient:
         users = await self.users_collection.find(query_options)
         return users
     
-    async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, page: int, limit: int):
+    async def get_avg_reviews_rating(self,review_ids: list):
+        review_ids = [ObjectId(id) for id in review_ids]
+        pipeline = [
+            {"$match": 
+                {"_id": {"$in": review_ids}}
+            },
+            { "$group": {
+                    "_id": None,
+                    "avg_score": {"$avg": "$score"}
+                }
+            },
+            { "$project" : {
+                    "_id": 0, 
+                    "avg_score": 1
+                } 
+            }
+        ]
+        async for review in self.reviews_collection.aggregate(pipeline):
+            return review['avg_score']
+        return 0
+
+    #TODO: calcular todos los maximos en funcion de los maximos de todos los repos y normalizar en el pipeline de aggregation en funcion de eso    
+    async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, repo_rev_dict: dict, page: int, limit: int):
         repos = []
         print(f"repo ids: {repo_ids}")
         total = await self.repos_collection.count_documents({"_id": {"$in": repo_ids}})
@@ -119,48 +148,77 @@ class MongoClient:
                 {"_id": {"$in": repo_ids}}
             },
             { "$project" : {
-            "_id" : 1,
-            "name":1,
-            "full_name": 1,
-            "stars": 1,
-            "languages": 1,
-            "created_at": 1,
-            "updated_at": 1,
-            "forks_count": 1,
-            "html_url": 1,
-            "score" : {
-                "$sum" : [
-                    # {"$multiply": 
-                    #     [{"$size": "$stars"},0.7]
-                    # },
-                    {"$multiply": 
-                        ["$stars",0.2]
-                    },
-                    {"$multiply": 
-                        ["$forks_count",0.2]
-                    },
-                    # {"$multiply": 
-                    #     ["$updated_at.getTime()",0.2]
-                    # },
-                ]
-            }
-            } 
+                    "_id" : 1,
+                    "name":1,
+                    "full_name": 1,
+                    "stars": 1,
+                    "languages": 1,
+                    "created_at": 1,
+                    "updated_at": 1,
+                    "forks_count": 1,
+                    "html_url": 1,
+                    # "score" : {
+                    #     "$sum" : [
+                    #         # {"$multiply": 
+                    #         #     [{"$size": "$stars"},0.7]
+                    #         # },
+                    #         {"$multiply": 
+                    #             ["$stars",0.4]
+                    #         },
+                    #         {"$multiply": 
+                    #             ["$forks_count",0.3]
+                    #         },
+                    #         # {"$multiply": 
+                    #         #     ["$updated_at.getTime()",0.2]
+                    #         # },
+                    #     ]
+                    # }
+                } 
             }, 
             {"$sort" : {"score" : -1} },
             {"$skip": page*limit},
             {"$limit": limit}
         ]
+        stars = []
+        forks_count = []
+        updates = []
+        lang_matches = {}
         async for repo in self.repos_collection.aggregate(pipeline):
             full_name = repo['full_name'].split('/')
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
+
+            repo_review_ids = repo_rev_dict.get(repo['_id'])
+            
             matches = len([lang for lang in user_langs if lang in repo['languages']])
-            repo['score'] = repo['score'] + float(matches) * 0.5
-            print(repo['score'])
+
+            date_ = repo['updated_at']
+            result = time.strptime(date_, "%Y-%m-%d %H:%M:%S")
             repos.append(repo)
-        # async for user in self.users_collection.find({"_id": {"$in": user_ids}}):
-        #     users.append(user)
+            stars.append(repo['stars'])
+            forks_count.append(repo['forks_count'])
+            updates.append(time.mktime(result))
+            lang_matches[repo['_id']] = matches
+        
+        max_stars = max(stars)
+        max_forks = max(forks_count)
+        max_update = max(updates)
+        max_langs = max(lang_matches.values())
+        for repo in repos:
+            matches = lang_matches[repo["_id"]]
+            avg_review = await self.get_avg_reviews_rating(repo_review_ids) / 5 
+            normalized_date = normalize_data(time.mktime(time.strptime(repo['updated_at'], "%Y-%m-%d %H:%M:%S")), max_update)
+            print(f"""Normalized date: {normalized_date}
+            Avg score: {normalized_date}
+            Matches: {matches}
+            Normalized stars: {normalize_data(repo['stars'], max_stars)}
+            Normalized forks: {normalize_data(repo['forks_count'], max_forks)}
+            """)
+            repo['score'] = normalized_date * 0.2 + avg_review * 0.5 + normalize_data(matches,max_langs) * 0.2 + normalize_data(repo['stars'], max_stars) * 0.4 + normalize_data(repo['forks_count'], max_forks) * 0.3
+            print(repo['score'])
+            
         return repos, total_pages
 
+    #TODO: calcular todos los maximos en funcion de los maximos de todos los users y normalizar en el pipeline de aggregation en funcion de eso   
     async def get_user_recommendations_by_id(self, user: dict, user_ids: list, page: int, limit: int):
         users = []
         total = await self.users_collection.count_documents({"_id": {"$in": user_ids}})
@@ -186,26 +244,37 @@ class MongoClient:
             'following': 1,
             'followers': 1,
             'html_url': 1,
-            "score" : {
-                "$sum" : [
-                    {"$multiply": 
-                        [{"$size": "$languages"},0.7]
-                    },
-                    {"$multiply": 
-                        ["$followers",0.2]
-                    },
-                ]
-            }
+            # "score" : {
+            #     "$sum" : [
+            #         {"$multiply": 
+            #             [{"$size": "$languages"},0.7]
+            #         },
+            #         {"$multiply": 
+            #             ["$followers",0.2]
+            #         },
+            #     ]
+            # }
             } 
             }, 
             {"$sort" : {"score" : -1} },
             {"$skip": page*limit},
             {"$limit": limit}
         ]
+        followers_total = []
+        contributions_total = []
+        lang_matches = {}
         async for rec_user in self.users_collection.aggregate(pipeline):
             matches = len([lang for lang in user_langs if lang in rec_user['languages']])
-            rec_user['score'] += float(matches) * 0.5
+            lang_matches[rec_user['_id']] = matches
+            # rec_user['score'] += float(matches) * 0.5
             users.append(rec_user)
+            followers_total.append(rec_user['followers'])
+        print(followers_total)
+        max_followers = max(followers_total)
+        max_langs = max(lang_matches.values())
+        for user in users:
+            matches = lang_matches.get(user['_id'])
+            user['score'] = normalize_data(matches,max_langs) * 0.2 + normalize_data(user['followers'],max_followers) * 0.5
         return users, total_pages
 
     async def get_user(self, username: str):
@@ -378,7 +447,7 @@ class Neo4jClient:
                     p=record["o"], id=id))
             # print(list(map(lambda elem: elem["o"],result)))
             print(len(result))
-            return None if not result else list(map(lambda elem: elem["o"],result))
+            return [] if not result else list(map(lambda elem: elem["o"],result))
 
     def get_recommended_repos(self,id: int, depth: int):
         recommended_users_ids = self.get_recommended_users(id,depth)
@@ -394,7 +463,7 @@ class Neo4jClient:
                     r=record["r"], id=id))
             # print(list(map(lambda elem: elem["r"],result)))
             print(len(result))
-            return None if not result else list(map(lambda elem: elem["r"],result))
+            return [] if not result else list(map(lambda elem: elem["r"],result))
 
     # @staticmethod
     # def _get_relation(tx, o1_id, o1_label, o2_id, o2_label, relation_label):
