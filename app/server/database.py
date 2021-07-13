@@ -131,7 +131,7 @@ class MongoClient:
             return review['avg_score']
         return 0
 
-    #TODO: calcular todos los maximos en funcion de los maximos de todos los repos y normalizar en el pipeline de aggregation en funcion de eso    
+    #TODO: calcular max languajes coincidentes
     async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, repo_rev_dict: dict, page: int, limit: int):
         repos = []
         print(f"repo ids: {repo_ids}")
@@ -141,6 +141,30 @@ class MongoClient:
         #     aux.append(user)
         # print(len(aux))
         # print(len(repo_ids))
+        # now = datetime.now().timestamp()
+
+        max_pipeline = [
+            {"$match": 
+                {"_id": {"$in": repo_ids}}
+            },
+            {"$group": {
+                    "_id": None,
+                    "max_stars": {"$max": "$stars"},
+                    "max_forks": {"$max": "$forks_count"},
+                    "max_languages": {"$max": {"$size": "$languages"}},
+                    "max_updated_at": {"$max": {"$toDouble": {"$toDate": "$updated_at"}}},
+                }
+            }
+        ]
+        max_stars, max_forks, max_langs, max_update = 0, 0, 0, 0
+        async for maximum_vals in self.repos_collection.aggregate(max_pipeline):
+            max_stars = maximum_vals['max_stars']
+            max_forks = maximum_vals['max_forks']
+            max_langs = maximum_vals['max_languages']
+            # max_update = time.mktime(time.strptime(maximum_vals['max_updated_at'], "%Y-%m-%d %H:%M:%S"))
+            max_update = maximum_vals['max_updated_at']
+        
+        print(f"max stars: {max_stars}, max forks: {max_forks}, max langs: {max_langs}, max updated at: {max_update}")
         total_pages = math.ceil(total/limit)
         user_langs = user['languages']
         pipeline = [
@@ -157,64 +181,73 @@ class MongoClient:
                     "updated_at": 1,
                     "forks_count": 1,
                     "html_url": 1,
-                    # "score" : {
-                    #     "$sum" : [
-                    #         # {"$multiply": 
-                    #         #     [{"$size": "$stars"},0.7]
-                    #         # },
-                    #         {"$multiply": 
-                    #             ["$stars",0.4]
-                    #         },
-                    #         {"$multiply": 
-                    #             ["$forks_count",0.3]
-                    #         },
-                    #         # {"$multiply": 
-                    #         #     ["$updated_at.getTime()",0.2]
-                    #         # },
-                    #     ]
-                    # }
+                    # "updated_at_milis": {"$toDouble": {"$toDate": "$updated_at"}},
+                    # "aux": {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]},
+                    "score" : {
+                        "$sum" : [
+                            {"$multiply": 
+                                [
+                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.4
+                                ]
+                            },
+                            {"$multiply": 
+                                [
+                                    { "$cond": [ { "$eq": [ max_stars, 0 ] }, 0, {"$divide":["$stars", max_stars]} ] },0.4
+                                ]
+                            },
+                            {"$multiply":
+                                [
+                                    { "$cond": [ { "$eq": [ max_forks, 0 ] }, 0, {"$divide":["$forks_count", max_forks]} ] },0.3
+                                ]
+                            },
+                            # {"$multiply": 
+                            #     ["$updated_at.getTime()",0.2]
+                            # },
+                        ]
+                    }
                 } 
             }, 
             {"$sort" : {"score" : -1} },
             {"$skip": page*limit},
             {"$limit": limit}
         ]
-        stars = []
-        forks_count = []
-        updates = []
-        lang_matches = {}
+        # stars = []
+        # forks_count = []
+        # updates = []
+        # lang_matches = {}
         async for repo in self.repos_collection.aggregate(pipeline):
             full_name = repo['full_name'].split('/')
             repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
-
+            # print(f"updated at milis: {repo['updated_at_milis']}, div: {repo['updated_at_milis']/max_update}")
+            # print(repo['aux'])
             repo_review_ids = repo_rev_dict.get(repo['_id'])
             
             matches = len([lang for lang in user_langs if lang in repo['languages']])
 
-            date_ = repo['updated_at']
-            result = time.strptime(date_, "%Y-%m-%d %H:%M:%S")
+            # date_ = repo['updated_at']
+            # result = time.strptime(date_, "%Y-%m-%d %H:%M:%S")
             repos.append(repo)
-            stars.append(repo['stars'])
-            forks_count.append(repo['forks_count'])
-            updates.append(time.mktime(result))
-            lang_matches[repo['_id']] = matches
+            # stars.append(repo['stars'])
+            # forks_count.append(repo['forks_count'])
+            # updates.append(time.mktime(result))
+            # lang_matches[repo['_id']] = matches
         
-        max_stars = max(stars)
-        max_forks = max(forks_count)
-        max_update = max(updates)
-        max_langs = max(lang_matches.values())
-        for repo in repos:
-            matches = lang_matches[repo["_id"]]
-            avg_review = await self.get_avg_reviews_rating(repo_review_ids) / 5 
-            normalized_date = normalize_data(time.mktime(time.strptime(repo['updated_at'], "%Y-%m-%d %H:%M:%S")), max_update)
-            print(f"""Normalized date: {normalized_date}
-            Avg score: {normalized_date}
-            Matches: {matches}
-            Normalized stars: {normalize_data(repo['stars'], max_stars)}
-            Normalized forks: {normalize_data(repo['forks_count'], max_forks)}
-            """)
-            repo['score'] = normalized_date * 0.2 + avg_review * 0.5 + normalize_data(matches,max_langs) * 0.2 + normalize_data(repo['stars'], max_stars) * 0.4 + normalize_data(repo['forks_count'], max_forks) * 0.3
-            print(repo['score'])
+        # max_stars = max(stars)
+        # max_forks = max(forks_count)
+        # max_update = max(updates)
+        # max_langs = max(lang_matches.values())
+        # for repo in repos:
+        #     matches = lang_matches[repo["_id"]]
+        #     avg_review = await self.get_avg_reviews_rating(repo_review_ids) / 5 
+        #     normalized_date = normalize_data(time.mktime(time.strptime(repo['updated_at'], "%Y-%m-%d %H:%M:%S")), max_update)
+        #     print(f"""Normalized date: {normalized_date}
+        #     Avg score: {normalized_date}
+        #     Matches: {matches}
+        #     Normalized stars: {normalize_data(repo['stars'], max_stars)}
+        #     Normalized forks: {normalize_data(repo['forks_count'], max_forks)}
+        #     """)
+        #     repo['score'] = normalized_date * 0.2 + avg_review * 0.5 + normalize_data(matches,max_langs) * 0.2 + normalize_data(repo['stars'], max_stars) * 0.4 + normalize_data(repo['forks_count'], max_forks) * 0.3
+        #     print(repo['score'])
             
         return repos, total_pages
 
