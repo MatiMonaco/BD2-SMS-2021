@@ -187,7 +187,7 @@ class MongoClient:
                         "$sum" : [
                             {"$multiply": 
                                 [
-                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.4
+                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.2
                                 ]
                             },
                             {"$multiply": 
@@ -260,6 +260,24 @@ class MongoClient:
         #     aux.append(user)
         # print(len(aux))
         # print(len(user_ids))
+        max_pipeline = [
+            {"$match": 
+                {"_id": {"$in": user_ids}}
+            },
+            {"$group": {
+                    "_id": None,
+                    "max_followers": {"$max": "$followers"},
+                    "max_languages": {"$max": {"$size": "$languages"}},
+                }
+            }
+        ]
+        max_followers, max_langs = 0, 0
+        async for maximum_vals in self.repos_collection.aggregate(max_pipeline):
+            max_followers = maximum_vals['max_followers']
+            max_langs = maximum_vals['max_languages']
+        
+        print(f"max followers: {max_followers}, max langs: {max_langs}")
+
         print(total)
         total_pages = math.ceil(total/limit)
         user_langs = user['languages']
@@ -277,37 +295,39 @@ class MongoClient:
             'following': 1,
             'followers': 1,
             'html_url': 1,
-            # "score" : {
-            #     "$sum" : [
-            #         {"$multiply": 
-            #             [{"$size": "$languages"},0.7]
-            #         },
-            #         {"$multiply": 
-            #             ["$followers",0.2]
-            #         },
-            #     ]
-            # }
+            "score" : {
+                "$sum" : [
+                    {"$multiply":
+                        [
+                            { "$cond": [ { "$eq": [ max_followers, 0 ] }, 0, {"$divide":["$followers", max_followers]} ] },0.3
+                        ]
+                    },
+                    # {"$multiply": 
+                    #     [{"$size": "$languages"},0.2]
+                    # },
+                ]
+            }
             } 
             }, 
             {"$sort" : {"score" : -1} },
             {"$skip": page*limit},
             {"$limit": limit}
         ]
-        followers_total = []
-        contributions_total = []
-        lang_matches = {}
+        # followers_total = []
+        # contributions_total = []
+        # lang_matches = {}
         async for rec_user in self.users_collection.aggregate(pipeline):
             matches = len([lang for lang in user_langs if lang in rec_user['languages']])
-            lang_matches[rec_user['_id']] = matches
+            # lang_matches[rec_user['_id']] = matches
             # rec_user['score'] += float(matches) * 0.5
             users.append(rec_user)
-            followers_total.append(rec_user['followers'])
-        print(followers_total)
-        max_followers = max(followers_total)
-        max_langs = max(lang_matches.values())
-        for user in users:
-            matches = lang_matches.get(user['_id'])
-            user['score'] = normalize_data(matches,max_langs) * 0.2 + normalize_data(user['followers'],max_followers) * 0.5
+            # followers_total.append(rec_user['followers'])
+        # print(followers_total)
+        # max_followers = max(followers_total)
+        # max_langs = max(lang_matches.values())
+        # for user in users:
+        #     matches = lang_matches.get(user['_id'])
+        #     user['score'] = normalize_data(matches,max_langs) * 0.2 + normalize_data(user['followers'],max_followers) * 0.5
         return users, total_pages
 
     async def get_user(self, username: str):
