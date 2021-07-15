@@ -106,9 +106,14 @@ class MongoClient:
         repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
-    async def get_users(self, query_options: dict):
-        users = await self.users_collection.find(query_options)
-        return users
+    async def get_users(self, order_by: str, asc: bool, page: int, limit: int):
+        users = []
+        total = await self.users_collection.count_documents({})
+        total_pages = math.ceil(total/limit)
+        asc_val = 1 if asc else -1
+        async for user in self.users_collection.find(sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
+            users.append(user)
+        return users,total_pages
     
     async def get_avg_reviews_rating(self,review_ids: list):
         review_ids = [ObjectId(id) for id in review_ids]
@@ -130,6 +135,20 @@ class MongoClient:
         async for review in self.reviews_collection.aggregate(pipeline):
             return review['avg_score']
         return 0
+
+    # async def get_most_popular_users(self,limit: int):
+    #     users = []
+    #     async for user in self.users_collection.find(sort=[("followers",-1)], limit=limit):
+    #         users.append(user)
+    #     return users
+
+    # async def get_most_starred_repos(self,limit: int):
+    #     repos = []
+    #     async for repo in self.repos_collection.find(sort=[("stars",-1)], limit=limit):
+    #         full_name = repo['full_name'].split('/')
+    #         repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+    #         repos.append(repo)
+    #     return repos
 
     #TODO: calcular max languajes coincidentes
     async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, repo_rev_dict: dict, page: int, limit: int):

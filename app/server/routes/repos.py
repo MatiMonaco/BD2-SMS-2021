@@ -29,15 +29,15 @@ async def get_repos(order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = 
     repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
     if repos:
         return PaginatedResponseModel(repos, page, limit, total_pages)
-    return ResponseModel(repos, StatusCodeEnum.OK.value, "Empty list returned")
+    return ResponseModel(repos, "Empty list returned")
 
 @router.get("/{username}/{reponame}", response_description="Returns information asociated to the requested repository")
 async def get_repo_by_name_and_username(username: str, reponame: str):
     repos = await mongo_client.get_repo(username, reponame)
     if repos:
-        return ResponseModel(repos, StatusCodeEnum.OK.value, "Retrieved requested repository")
+        return ResponseModel(repos,  "Retrieved requested repository")
     #TODO: change to NOT FOUND, change message
-    return ResponseModel(repos, StatusCodeEnum.OK.value, "Empty list returned")
+    return ResponseModel(repos,  "Empty list returned")
 
 @router.get("/{username}/{reponame}/reviews", response_description="Retrieved reviews for requested repository")
 async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
@@ -49,7 +49,7 @@ async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy
         if review_ids:
             reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page-1,limit)
             return PaginatedResponseModel(reviews,page,limit,total_pages)
-    return ResponseModel(review_ids, StatusCodeEnum.OK.value, "Empty list returned")
+    return ResponseModel(review_ids,  "Empty list returned")
 
 
 # Create new review
@@ -66,5 +66,5 @@ async def post_repo_review(username: str, reponame: str, review: ReviewSchema):
                 new_relation = neo_client.create_review(reviewer['_id'],repo['_id'], str(new_review['_id']))
                 return ResponseModel(new_review, StatusCodeEnum.OK.value, "Successfully created new review")
     #TODO: change to apropiate response in failure
-    return ResponseModel([], StatusCodeEnum.BAD_REQUEST.value, "Bad request")
+    return ResponseModel([], "Bad request")
 

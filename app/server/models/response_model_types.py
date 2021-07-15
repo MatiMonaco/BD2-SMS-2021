@@ -23,10 +23,9 @@ from pydantic import BaseModel, EmailStr, Field
 #         }
 
 
-def ResponseModel(data, code, message):
+def ResponseModel(data, message):
     return {
         "data": [data],
-        "code": code,
         "message": message,
     }
 
