@@ -156,12 +156,6 @@ class MongoClient:
         repos = []
         print(f"repo ids: {repo_ids}")
         total = await self.repos_collection.count_documents({"_id": {"$in": repo_ids}})
-        # aux = []
-        # async for user in self.repos_collection.find({"_id": {"$in": repo_ids}}):
-        #     aux.append(user)
-        # print(len(aux))
-        # print(len(repo_ids))
-        # now = datetime.now().timestamp()
 
         max_pipeline = [
             {"$match": 
@@ -181,7 +175,6 @@ class MongoClient:
             max_stars = maximum_vals['max_stars']
             max_forks = maximum_vals['max_forks']
             max_langs = maximum_vals['max_languages']
-            # max_update = time.mktime(time.strptime(maximum_vals['max_updated_at'], "%Y-%m-%d %H:%M:%S"))
             max_update = maximum_vals['max_updated_at']
         
         print(f"max stars: {max_stars}, max forks: {max_forks}, max langs: {max_langs}, max updated at: {max_update}")
@@ -201,8 +194,6 @@ class MongoClient:
                     "updated_at": 1,
                     "forks_count": 1,
                     "html_url": 1,
-                    # "updated_at_milis": {"$toDouble": {"$toDate": "$updated_at"}},
-                    # "aux": {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]},
                     "score" : {
                         "$sum" : [
                             {"$multiply": 
@@ -220,9 +211,19 @@ class MongoClient:
                                     { "$cond": [ { "$eq": [ max_forks, 0 ] }, 0, {"$divide":["$forks_count", max_forks]} ] },0.3
                                 ]
                             },
-                            # {"$multiply": 
-                            #     ["$updated_at.getTime()",0.2]
-                            # },
+                            {"$multiply": 
+                                [
+                                    { "$cond": [ { "$eq": [ max_langs, 0 ] }, 0, {"$divide":[{
+                                        "$size": {
+                                            "$filter": {
+                                                "input": "$languages",
+                                                # "as": "lang",
+                                                "cond": {"$in": ["$$this",user_langs]}
+                                            }
+                                        }
+                                    }, max_langs]} ] },0.3
+                                ]
+                            },
                         ]
                     }
                 } 
@@ -292,7 +293,7 @@ class MongoClient:
             }
         ]
         max_followers, max_langs = 0, 0
-        async for maximum_vals in self.repos_collection.aggregate(max_pipeline):
+        async for maximum_vals in self.users_collection.aggregate(max_pipeline):
             max_followers = maximum_vals['max_followers']
             max_langs = maximum_vals['max_languages']
         
@@ -319,12 +320,22 @@ class MongoClient:
                 "$sum" : [
                     {"$multiply":
                         [
-                            { "$cond": [ { "$eq": [ max_followers, 0 ] }, 0, {"$divide":["$followers", max_followers]} ] },0.3
+                            { "$cond": [ { "$eq": [ max_followers, 0 ] }, 0, {"$divide":["$followers", max_followers]} ] },0.6
                         ]
                     },
-                    # {"$multiply": 
-                    #     [{"$size": "$languages"},0.2]
-                    # },
+                    {"$multiply":
+                        [
+                            { "$cond": [ { "$eq": [ max_langs, 0 ] }, 0, {"$divide":[{
+                                "$size": {
+                                    "$filter": {
+                                        "input": "$languages",
+                                        # "as": "lang",
+                                        "cond": {"$in": ["$$this",user_langs]}
+                                    }
+                                }
+                            }, max_langs]} ] },0.3
+                        ]
+                    },
                 ]
             }
             } 
@@ -337,7 +348,7 @@ class MongoClient:
         # contributions_total = []
         # lang_matches = {}
         async for rec_user in self.users_collection.aggregate(pipeline):
-            matches = len([lang for lang in user_langs if lang in rec_user['languages']])
+            # matches = len([lang for lang in user_langs if lang in rec_user['languages']])
             # lang_matches[rec_user['_id']] = matches
             # rec_user['score'] += float(matches) * 0.5
             users.append(rec_user)
