@@ -511,6 +511,18 @@ class Neo4jClient:
                     r=record, repo=repo_id))
             return None if not result else result
 
+    def get_reviews_for_user(self,user_id):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person {id: $user_id})-[r:REVIEWS]->(o2:Repository)"
+            "RETURN r"
+            )
+            result = session.read_transaction(
+                self._get_relation, query, user_id=user_id)
+            for record in result:
+                print("Found reviews {r} for user {user}".format(
+                    r=record, user=user_id))
+            return None if not result else result
 
     def get_review(self, person_id, repo_id):
         with self.driver.session() as session:

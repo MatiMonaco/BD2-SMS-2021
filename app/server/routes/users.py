@@ -22,6 +22,10 @@ class UserOrderBy(str, Enum):
     followers = "followers"
     following = "following"
 
+class ReviewOrderBy(str, Enum):
+    created_at = "created_at"
+    score = "score"
+
 @router.get("/", response_description="Users retrieved")
 async def get_users(order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
     users, total_pages = await mongo_client.get_users(order_by.value, asc, page-1,limit)
@@ -94,6 +98,21 @@ async def get_following(username: str, order_by: UserOrderBy = UserOrderBy.follo
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
 
+@router.get("/{username}/reviews", response_description="Users that follow the user")
+async def get_reviews(username: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
+    user = await mongo_client.get_user(username)
+    if user:
+        # get reviews from neo
+        review_ids = neo_client.get_reviews_for_user(user['_id'])
+        if review_ids:
+            # get reviews by array of ids from mongo
+            users, total_pages = await mongo_client.get_reviews(review_ids, order_by.value, asc, page-1, limit)
+            # return paginated response
+            return PaginatedResponseModel(users, page, limit, total_pages)
+        # TODO: dejar este o usar error?
+        return PaginatedResponseModel([], page, limit, 1)
+        # return ErrorResponseModel("Not found", 404, "Could not find reviews")
+    return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
 
 
 @router.put("/{username}", response_description="Edit user")
