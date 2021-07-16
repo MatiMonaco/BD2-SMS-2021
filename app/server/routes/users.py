@@ -9,6 +9,7 @@ from server.models.response_model_types import (
     ResponseModel,
     PaginatedResponseModel
 )
+from server.models.user import UserSchema, UpdateUserModel
 
 with open("app/config.json") as file:
     config = json.load(file)
@@ -27,6 +28,28 @@ async def get_users(order_by: UserOrderBy = UserOrderBy.followers, asc: bool = F
     if users:
         return PaginatedResponseModel(users, page, limit, total_pages)
     return ResponseModel(users, "Empty list returned")
+
+@router.get("/{username}", response_description="Username information")
+async def get_user(username: str):
+    user = await mongo_client.get_user(username)
+    if user:
+        # TODO: use a single type response model
+        # return PaginatedResponseModel(user, 1, 1, 1)
+        return ResponseModel(user, "User returned successfully") 
+    return ErrorResponseModel("Not found", 404,  "User not found")
+
+@router.put("/{username}", response_description="Edit user")
+async def edit_user(username: str, req: UpdateUserModel = Body(...)):
+    req = {k:v for k, v in req.dict().items() if v is not None}
+    user = await mongo_client.get_user(username)
+    if user:
+        updated_user = await mongo_client.update_user(user["_id"], req)
+        if updated_user:
+            return ResponseModel("User {} updated successfully".format(username), "User updated successfully")
+        else:
+            return ErrorResponseModel("An error ocurred", 404, "There was an error updating the user data")
+    else:
+        return ErrorResponseModel("Not found", 404, "User not found")
 
 @router.get("/{username}/recommended/repos", response_description="Users retrieved")
 async def get_recommended_repos(username: str, depth: int = 1, page: int = 1, limit: int = 10):

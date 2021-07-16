@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 
@@ -39,3 +39,4 @@ def PaginatedResponseModel(data, page, limit, total_pages):
 
 def ErrorResponseModel(error, code, message):
     return {"error": error, "code": code, "message": message}
+

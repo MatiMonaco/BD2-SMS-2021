@@ -114,6 +114,17 @@ class MongoClient:
             repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
+    async def get_user(self, username: str):
+        user = await self.users_collection.find_one({'username': username})
+        return user
+
+    async def update_user(self, id:str, data: dict):
+        updated_user = await self.users_collection.update_one({"_id": id}, {"$set": data})
+        if updated_user:
+            return True
+        return False
+        
+
     async def get_users(self, order_by: str, asc: bool, page: int, limit: int):
         users = []
         total = await self.users_collection.count_documents({})
