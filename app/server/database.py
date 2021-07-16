@@ -28,7 +28,7 @@ class MongoClient:
     def __init__(self,port: int):
         #TODO: crear indice en fullname 
         self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
-        self.network_db = self.mongo_client['network']
+        self.network_db = self.mongo_client['network'] 
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
         self.reviews_collection = self.network_db.get_collection("reviews")
@@ -103,7 +103,8 @@ class MongoClient:
         full_name = username + '/' + reponame
         # repo = await self.repos_collection.find_one({'full_name': full_name})
         repo = await self.repos_collection.find_one({'full_name': {'$regex': '^{}$'.format(full_name),'$options': 'i'}})
-        repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+        if repo:
+            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
     async def get_users(self, order_by: str, asc: bool, page: int, limit: int):
