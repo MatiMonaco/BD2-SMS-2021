@@ -10,7 +10,7 @@ g = Github(github_api_token)
 g.per_page = 100
 query_count = 0
 print(f"remaining queries: {g.rate_limiting[0]}")
-users = {}
+users = set()
 
 
 def add_to_dict(users, user, curr_depth, max_depth=2):
