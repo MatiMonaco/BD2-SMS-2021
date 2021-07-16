@@ -33,10 +33,36 @@ async def get_users(order_by: UserOrderBy = UserOrderBy.followers, asc: bool = F
 async def get_user(username: str):
     user = await mongo_client.get_user(username)
     if user:
-        # TODO: use a single type response model
-        # return PaginatedResponseModel(user, 1, 1, 1)
         return ResponseModel(user, "User returned successfully") 
     return ErrorResponseModel("Not found", 404,  "User not found")
+
+@router.get("/{username}/following", response_description="Users followed by username")
+async def get_following(username: str, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
+    user = await mongo_client.get_user(username)
+    if user:
+        # get followings from neo
+        followed_ids = neo_client.get_followed_users(user['_id'])
+        if followed_ids:
+            # get users by array of ids from mongo
+            users, total_pages = await mongo_client.get_users_by_id(followed_ids, order_by.value, asc, page-1, limit)
+
+            # return paginated response
+            return PaginatedResponseModel(users, page, limit, total_pages)
+
+@router.get("/{username}/followed_by", response_description="Users that follow username")
+async def get_following(username: str, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
+    user = await mongo_client.get_user(username)
+    if user:
+        # get followings from neo
+        followed_ids = neo_client.get_followed_by_users(user['_id'])
+        if followed_ids:
+            # get users by array of ids from mongo
+            users, total_pages = await mongo_client.get_users_by_id(followed_ids, order_by.value, asc, page-1, limit)
+
+            # return paginated response
+            return PaginatedResponseModel(users, page, limit, total_pages)
+
+
 
 @router.put("/{username}", response_description="Edit user")
 async def edit_user(username: str, req: UpdateUserModel = Body(...)):

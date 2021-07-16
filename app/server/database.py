@@ -126,6 +126,23 @@ class MongoClient:
         async for user in self.users_collection.find(sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
             users.append(user)
         return users,total_pages
+
+    async def get_users_by_id(self, user_ids: list, order_by: str, asc: bool, page: int, limit: int):
+        users = []
+        total = await self.users_collection.count_documents({"_id": {"$in": user_ids}})
+        total_pages = math.ceil(total/limit)
+        asc_val = 1 if asc else -1
+        pipeline = [
+            {"$match": 
+                {"_id": {"$in": user_ids}}
+            },
+            {"$sort": {order_by: asc_val}},
+            {"$skip": page*limit},
+            {"$limit": limit}
+        ]
+        async for user in self.users_collection.aggregate(pipeline):
+            users.append(user)
+        return users,total_pages
     
     async def get_avg_reviews_rating(self,review_ids: list):
         review_ids = [ObjectId(id) for id in review_ids]
@@ -541,6 +558,34 @@ class Neo4jClient:
                 print("Found following user with id {p} for id {id}".format(
                     p=record["o"], id=id))
             # print(list(map(lambda elem: elem["o"],result)))
+            print(len(result))
+            return [] if not result else list(map(lambda elem: elem["o"],result))
+
+    def get_followed_users(self,id: int):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS]-(o:Person)"
+            "RETURN DISTINCT o"
+            )
+            result = session.read_transaction(
+                self._get_nodes, query, "o", o1_id=id)
+            for record in result:
+                print("Found following user with id {p} for id {id}".format(
+                    p=record["o"], id=id))
+            print(len(result))
+            return [] if not result else list(map(lambda elem: elem["o"],result))
+
+    def get_followed_by_users(self,id: int):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o:Person)-[r:FOLLOWS]-(o1:Person { id: $o1_id })"
+            "RETURN DISTINCT o"
+            )
+            result = session.read_transaction(
+                self._get_nodes, query, "o", o1_id=id)
+            for record in result:
+                print("Found following user with id {p} for id {id}".format(
+                    p=record["o"], id=id))
             print(len(result))
             return [] if not result else list(map(lambda elem: elem["o"],result))
 
