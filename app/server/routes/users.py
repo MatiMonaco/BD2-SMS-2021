@@ -36,7 +36,7 @@ async def get_user(username: str):
         return ResponseModel(user, "User returned successfully") 
     return ErrorResponseModel("Not found", 404,  "User not found")
 
-@router.get("/{username}/following", response_description="Users followed by username")
+@router.get("/{username}/following", response_description="Users followed by the user")
 async def get_following(username: str, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
     user = await mongo_client.get_user(username)
     if user:
@@ -49,7 +49,39 @@ async def get_following(username: str, order_by: UserOrderBy = UserOrderBy.follo
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
 
-@router.get("/{username}/followed_by", response_description="Users that follow username")
+@router.post("/{username}/follow/{other_username}", response_description="Follow another user")
+async def follow(username: str, other_username: str):
+    user = await mongo_client.get_user(username) 
+    other_user = await mongo_client.get_user(other_username) 
+    if not user:
+        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
+    if not other_user:
+        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(other_username))
+    if not neo_client.is_following(user['_id'], other_user['_id']):
+        result = neo_client.create_following(user['_id'], other_user['_id'])
+        if not result:
+            return ErrorResponseModel("Something went wrong", 404, "Could not follow")
+    followers_url = f"http://{server_url}:{server_port}/users/{username}/following"
+    return ResponseModel(followers_url, "Following successfully")
+
+@router.post("/{username}/unfollow/{other_username}", response_description="Stop following another user")
+async def unfollow(username: str, other_username: str):
+    user = await mongo_client.get_user(username) 
+    other_user = await mongo_client.get_user(other_username) 
+    if not user:
+        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
+    if not other_user:
+        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(other_username))
+    if neo_client.is_following(user['_id'], other_user['_id']):
+        result = neo_client.delete_following(user['_id'], other_user['_id'])
+        if not result:
+            return ErrorResponseModel("Something went wrong", 404, "Could not unfollow")
+    followers_url = f"http://{server_url}:{server_port}/users/{username}/following"
+    return ResponseModel(followers_url, "Unfollowed successfully")
+
+        
+
+@router.get("/{username}/followed_by", response_description="Users that follow the user")
 async def get_following(username: str, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
     user = await mongo_client.get_user(username)
     if user:

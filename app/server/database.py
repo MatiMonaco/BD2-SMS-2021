@@ -484,6 +484,10 @@ class Neo4jClient:
             for record in result:
                 print("Created following between: {o1}, {o2}".format(
                     o1=record['o1'], o2=record['o2']))
+            return result
+
+
+
 
     def create_review(self, person_id: int, repo_id: int, review_id: str):
         with self.driver.session() as session:
@@ -581,6 +585,25 @@ class Neo4jClient:
                     p=record["o"], id=id))
             print(len(result))
             return [] if not result else list(map(lambda elem: elem["o"],result))
+
+    def is_following(self, user_id: int, other_user_id: int):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS]-(o2:Person {id: $o2_id})"
+            "RETURN count(r)"
+            )
+            result = session.run(query, o1_id=user_id, o2_id=other_user_id)
+            return result.single().value() >= 1
+
+    def delete_following(self, follower_id, person_id):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS]-(o2:Person {id: $o2_id})"
+            "DELETE r"
+            )
+            result = session.run(query, o1_id=follower_id, o2_id=person_id)
+            return result
+
 
     def get_followed_by_users(self,id: int):
         with self.driver.session() as session:
