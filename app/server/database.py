@@ -59,6 +59,7 @@ class MongoClient:
             'following': user_data['following'],
             'followers': user_data['followers'],
             'html_url': user_data['html_url'],
+            'registered': user_data['registered']
         }
 
     @staticmethod
@@ -79,6 +80,12 @@ class MongoClient:
         user = await self.users_collection.insert_one(MongoClient._user_helper(user_data))
         new_user = await self.users_collection.find_one({"_id": user.inserted_id})
         return new_user
+
+    async def set_registered(self,user_id,registered):
+            user = await self.users_collection.update_one({"_id":user_id},{"$set":{"registered":registered}})
+            new_user = await self.users_collection.find_one({"_id": user_id})
+            return new_user
+
     
     async def insert_review(self,review_data: dict):
         review = await self.reviews_collection.insert_one(MongoClient._review_helper(review_data))

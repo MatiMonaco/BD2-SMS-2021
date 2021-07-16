@@ -27,7 +27,7 @@ async def register(username: UsernameSchema, response: Response):
     users = set()
     print("register username: "+username.username)
     user = g.get_user(username.username)
-    ret = await add_user_rec(users, user, 0, 3)
+    ret = await add_user_rec(users, user,True, 0, 3)
     if ret:
         return {"message": "Registered"}
     else:
@@ -38,9 +38,12 @@ async def register(username: UsernameSchema, response: Response):
 MAX_CONTRIBUTORS_PER_REPO = 5
 MAX_REPOS_PER_USER = 5
 MAX_FOLLOWING_PER_USER = 5
-async def add_user_rec(users, user, curr_depth, max_depth=2):
+async def add_user_rec(users, user, register,curr_depth, max_depth=2):
         mongo_user = await mongo_client.get_user(user.login)
-        if not mongo_user and not user.id in users:
+        registered = False
+        if mongo_user:
+            registered =  mongo_user['registered'] 
+        if not registered and not user.id in users:
             print(f"creating user {user.login}")
             user_langs = set()
             users.add(user.id)
@@ -52,23 +55,32 @@ async def add_user_rec(users, user, curr_depth, max_depth=2):
                 print(fullname[0] + " - "+fullname[1])
                 repo = await mongo_client.get_repo(fullname[0], fullname[1])
                 if not repo:
-                    repo_langs = list(item.get_languages().keys())
-                    user_langs.update(repo_langs)
+                    repo_langs = {}
+                    try:
+                        repo_langs = list(item.get_languages().keys())
+                        user_langs.update(repo_langs)
+                    except GithubException as e:
+                        continue
                     repo_dict = repo_dict_helper(item,repo_langs)
-                    if curr_depth < max_depth:
+                    if curr_depth <= max_depth:
                         await mongo_client.insert_repo(repo_dict)
                         neo_client.create_ownership(user.id,repo_dict["github_repo_id"])
-                        try:
-                            for i,contributor in enumerate(item.get_contributors()):
-                                if i > MAX_CONTRIBUTORS_PER_REPO:
-                                    break
-                                neo_client.create_contribution(contributor.id,repo_dict["github_repo_id"])
-                                await add_user_rec(users,contributor,curr_depth+1,max_depth)
-                        except GithubException as e:
-                            continue
+                        # try:
+                        #     for i,contributor in enumerate(item.get_contributors()):
+                        #         if i > MAX_CONTRIBUTORS_PER_REPO:
+                        #             break
+                        #         neo_client.create_contribution(contributor.id,repo_dict["github_repo_id"])
+                        #         await add_user_rec(users,contributor,curr_depth+1,max_depth)
+                        # except GithubException as e:
+                        #     continue
 
             #add user to mongo
-            await mongo_client.insert_user(user_dict_helper(user,list(user_langs)))
+            if mongo_user:
+                if not registered and register:
+                    await mongo_client.set_registered(user.id,True)
+            else:
+                await mongo_client.insert_user(user_dict_helper(user,list(user_langs),register))
+            
 
             if curr_depth < max_depth:
             # to get the users the owner follows
@@ -79,14 +91,14 @@ async def add_user_rec(users, user, curr_depth, max_depth=2):
                             break
                         print(f"trying to create {follow.login} followed by {user.login}")
                         neo_client.create_following(user.id,follow.id) 
-                        await add_user_rec(users, follow, curr_depth+1,max_depth)
+                        await add_user_rec(users, follow,False, curr_depth+1,max_depth)
             return True
         else:
             return False
 
             
 
-def user_dict_helper(user, user_langs):
+def user_dict_helper(user, user_langs,register):
     return {
             "github_user_id": user.id,
             "username": user.login,
@@ -98,6 +110,7 @@ def user_dict_helper(user, user_langs):
             "following": user.following,
             "followers": user.followers,
             "html_url": user.html_url,
+            "registered":register
             
         }
 
