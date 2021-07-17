@@ -6,4 +6,11 @@ class ReviewSchema(BaseModel):
     reviewer: str = Field(...)
     score: float = Field(..., ge=0, le=5)
     comment: str = Field(...)
-    created_at: datetime = Field(...)
+    # created_at: datetime = Field(...)
+
+class UpdateReviewModel(BaseModel):
+    score: Optional[str]
+    comment: Optional[str]
+
+class DeleteReviewModel(BaseModel):
+    id: str

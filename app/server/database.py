@@ -88,6 +88,7 @@ class MongoClient:
 
     
     async def insert_review(self,review_data: dict):
+        review_data['created_at'] = str(datetime.now().isoformat(" ", "seconds"))
         review = await self.reviews_collection.insert_one(MongoClient._review_helper(review_data))
         print(review.inserted_id)
         new_review = await self.reviews_collection.find_one({"_id": review.inserted_id})
@@ -400,7 +401,7 @@ class MongoClient:
         user = await self.users_collection.find_one({'username': {'$regex': '^{}$'.format(username),'$options': 'i'}})
         return user
 
-    async def get_reviews(self, review_ids, order_by: str, asc: bool, page: int, limit: int):
+    async def get_reviews(self, review_ids: list, order_by: str, asc: bool, page: int, limit: int):
         reviews = []
         total = await self.reviews_collection.count_documents({})
         total_pages = math.ceil(total/limit)
@@ -408,6 +409,19 @@ class MongoClient:
         asc_val = 1 if asc else -1
         async for review in self.reviews_collection.find({"_id": {"$in": review_ids}},sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
             review['_id'] = str(review['_id'])
+            reviews.append(review)
+        return reviews,total_pages
+
+    async def get_reviews_with_repo(self, review_dict: dict, order_by: str, asc: bool, page: int, limit: int):
+        reviews = []
+        total = await self.reviews_collection.count_documents({})
+        total_pages = math.ceil(total/limit)
+        review_ids = [ObjectId(id) for id in list(review_dict.keys())]
+        asc_val = 1 if asc else -1
+        async for review in self.reviews_collection.find({"_id": {"$in": review_ids}},sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
+            review['_id'] = str(review['_id'])
+            repo = await self.repos_collection.find_one({"_id": review_dict[review['_id']]})
+            review['repo_name'] = repo['full_name']
             reviews.append(review)
         return reviews,total_pages
 
@@ -513,16 +527,18 @@ class Neo4jClient:
 
     def get_reviews_for_user(self,user_id):
         with self.driver.session() as session:
+            # I'd like to get the review AND it's corresponding repo
             query = (
             "MATCH (o1:Person {id: $user_id})-[r:REVIEWS]->(o2:Repository)"
-            "RETURN r"
+            "RETURN r,o2"
             )
-            result = session.read_transaction(
-                self._get_relation, query, user_id=user_id)
+            result = session.run(query, user_id=user_id)
+            results = {}
             for record in result:
-                print("Found reviews {r} for user {user}".format(
-                    r=record, user=user_id))
-            return None if not result else result
+                review = record["r"]["id"]
+                repo = record["o2"]["id"]
+                results[review] = repo
+            return None if not result else results
 
     def get_review(self, person_id, repo_id):
         with self.driver.session() as session:

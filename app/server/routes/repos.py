@@ -64,7 +64,10 @@ async def post_repo_review(username: str, reponame: str, review: ReviewSchema):
             new_review = await mongo_client.insert_review(review)
             if new_review:
                 new_relation = neo_client.create_review(reviewer['_id'],repo['_id'], str(new_review['_id']))
-                return ResponseModel(new_review, StatusCodeEnum.OK.value, "Successfully created new review")
+                return ResponseModel(new_review, "Successfully created new review")
     #TODO: change to apropiate response in failure
     return ResponseModel([], "Bad request")
+
+# @router.put("/{username}/{reponame}/review", response_description="Edit a review")
+# @router.delete("/{username}/{reponame}/review", response_description="Delete a review")
 

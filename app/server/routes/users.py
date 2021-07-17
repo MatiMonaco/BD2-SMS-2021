@@ -104,9 +104,10 @@ async def get_reviews(username: str, order_by: ReviewOrderBy = ReviewOrderBy.cre
     if user:
         # get reviews from neo
         review_ids = neo_client.get_reviews_for_user(user['_id'])
+        # breakpoint()
         if review_ids:
             # get reviews by array of ids from mongo
-            users, total_pages = await mongo_client.get_reviews(review_ids, order_by.value, asc, page-1, limit)
+            users, total_pages = await mongo_client.get_reviews_with_repo(review_ids, order_by.value, asc, page-1, limit)
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
         # TODO: dejar este o usar error?
