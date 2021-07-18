@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Response, status
 from server.routes.repos import router as ReposRouter
 from server.routes.users import router as UsersRouter
+from server.routes.reviews import router as ReviewsRouter
 from pydantic import BaseModel, Field
 from github import Github, GithubException
 from server.database import mongo_client, neo_client
@@ -17,6 +18,7 @@ app = FastAPI()
 
 app.include_router(ReposRouter, tags=["Repos"], prefix="/repos")
 app.include_router(UsersRouter, tags=["Users"], prefix="/users")
+app.include_router(ReviewsRouter, tags=["Reviews"], prefix="/reviews")
 @app.get("/", tags=["Root"])
 async def root():
     return {"message": "Hello World"}

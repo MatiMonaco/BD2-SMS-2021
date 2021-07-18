@@ -15,7 +15,8 @@ with open("app/config.json") as file:
     server_port = config["server_port"]
 
 # mongodb
-MONGO_DETAILS = "mongodb://localhost:27017"
+MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
+
 NEO4J_DETAILS = "neo4j://localhost:7474"
 
 def normalize_data(data, max):
@@ -27,7 +28,8 @@ def normalize_data(data, max):
 class MongoClient:
     def __init__(self,port: int):
         #TODO: crear indice en fullname 
-        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
+       # self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
+        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DETAILS)
         self.network_db = self.mongo_client['network'] 
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
@@ -124,6 +126,23 @@ class MongoClient:
         if updated_user:
             return True
         return False
+
+    async def update_review(self, id:str, data: dict):
+        review = await self.reviews_collection.find_one({"_id": id})
+        data['modified_at'] = str(datetime.now().isoformat(" ", "seconds"))
+        review.update(data)
+        
+        updated_review = await self.reviews_collection.update_one({"_id": id}, {"$set": review})
+        if updated_review:
+            return True
+        return False
+
+    async def delete_review(self, id:str):
+        review = await self.reviews_collection.delete_one({"_id": ObjectId(id)})
+        if review:
+            return True
+        return False
+
         
 
     async def get_users(self, order_by: str, asc: bool, page: int, limit: int):
@@ -401,6 +420,10 @@ class MongoClient:
         user = await self.users_collection.find_one({'username': {'$regex': '^{}$'.format(username),'$options': 'i'}})
         return user
 
+    async def get_review(self, review_id: str):
+        review = await self.reviews_collection.find_one({'_id': ObjectId(review_id)})
+        return review
+
     async def get_reviews(self, review_ids: list, order_by: str, asc: bool, page: int, limit: int):
         reviews = []
         total = await self.reviews_collection.count_documents({})
@@ -540,18 +563,15 @@ class Neo4jClient:
                 results[review] = repo
             return None if not result else results
 
-    def get_review(self, person_id, repo_id):
+    def has_review(self, reviewer_id: int, repo_id: int):
         with self.driver.session() as session:
             query = (
-            "MATCH (o1:Person { id: $o1_id })-[r:REVIEW]->(o2:Repository { id: $o2_id })"
-            "RETURN r"
+            "MATCH (o1:Person { id: $o1_id })-[r:REVIEWS]-(o2:Repository {id: $o2_id})"
+            "RETURN count(r)"
             )
-            result = session.read_transaction(
-                self._get_relation, query, o1_id=person_id, o2_id=repo_id)
-            for record in result:
-                print("Found review between: {o1}, {o2} with id: {r}".format(
-                    o1=person_id, o2=repo_id,r=record))
-            return None if not result else result[0]
+            result = session.run(query, o1_id=reviewer_id, o2_id=repo_id)
+            return result.single().value() >= 1
+
     
     @staticmethod
     def _get_relation(tx, query, **kargs):
@@ -630,6 +650,15 @@ class Neo4jClient:
             "DELETE r"
             )
             result = session.run(query, o1_id=follower_id, o2_id=person_id)
+            return result
+
+    def delete_review(self, review_id):
+        with self.driver.session() as session:
+            query = (
+            "MATCH (o1:Person)-[r:REVIEWS { id: $id }]-(o2:Repository)"
+            "DELETE r"
+            )
+            result = session.run(query, id=review_id)
             return result
 
 
