@@ -1,5 +1,5 @@
 from server.models.response_model_types import PaginatedResponseModel
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Response, status
 from fastapi.encoders import jsonable_encoder
 from server.database import mongo_client, neo_client
 from server.models.status_code_enum import StatusCodeEnum
@@ -23,22 +23,23 @@ class RepoOrderBy(str, Enum):
 
 router = APIRouter()
 @router.get("/", response_description="Repos retrieved")
-async def get_repos(order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
+async def get_repos(response : Response, order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10 ):
     repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
     if repos:
         return PaginatedResponseModel(repos, page, limit, total_pages)
-    return ResponseModel(repos, "Empty list returned")
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return ResponseModel([], "No content")
 
 @router.get("/{username}/{reponame}", response_description="Returns information asociated to the requested repository")
-async def get_repo_by_name_and_username(username: str, reponame: str):
+async def get_repo_by_name_and_username(response : Response, username: str, reponame: str ):
     repos = await mongo_client.get_repo(username, reponame)
     if repos:
         return ResponseModel(repos,  "Retrieved requested repository")
-    #TODO: change to NOT FOUND, change message
-    return ResponseModel(repos,  "Empty list returned")
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return ErrorResponseModel("Not Found", 404, "Repository not found")
 
 @router.get("/{username}/{reponame}/reviews", response_description="Retrieved reviews for requested repository")
-async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
+async def get_repo_reviews(response: Response, username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
     repo = await mongo_client.get_repo(username, reponame)
     if repo:
         repo_id = repo['_id']
@@ -47,7 +48,8 @@ async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy
         if review_ids:
             reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page-1,limit)
             return PaginatedResponseModel(reviews,page,limit,total_pages)
-    return ResponseModel(review_ids,  "Empty list returned")
+    response.status_code = status.HTTP_204_NO_CONTENT
+    return ResponseModel([],  "No content")
 
 
 
