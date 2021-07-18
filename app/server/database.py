@@ -17,7 +17,7 @@ with open("app/config.json") as file:
 # mongodb
 MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
 
-NEO4J_DETAILS = "neo4j://localhost:7474"
+NEO4J_DETAILS = "neo4j+s://10dacb6b.databases.neo4j.io:7687"
 
 def normalize_data(data, max):
     # if max-min == 0: return 0
@@ -454,7 +454,9 @@ class MongoClient:
 class Neo4jClient:
 
     def __init__(self, port: int, user: str, password: str):
-        self.driver = GraphDatabase.driver("neo4j://localhost:" + str(port), auth=(user, password))
+        #self.driver = GraphDatabase.driver("neo4j://localhost:" + str(port), auth=(user, password))
+        self.driver = GraphDatabase.driver(  NEO4J_DETAILS)
+      
 
     def close(self):
         self.driver.close()
