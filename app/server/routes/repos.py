@@ -27,7 +27,6 @@ async def get_repos(response : Response, order_by: RepoOrderBy = RepoOrderBy.cre
     repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
     if repos:
         return PaginatedResponseModel(repos, page, limit, total_pages)
-    response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([], "No content")
 
 @router.get("/{username}/{reponame}", response_description="Returns information asociated to the requested repository")
@@ -48,7 +47,6 @@ async def get_repo_reviews(response: Response, username: str, reponame: str, ord
         if review_ids:
             reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page-1,limit)
             return PaginatedResponseModel(reviews,page,limit,total_pages)
-    response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([],  "No content")
 
 

@@ -607,6 +607,7 @@ class Neo4jClient:
         with self.driver.session() as session:
             query = (
             "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS*2.." + str(depth) + "]-(o:Person)"
+            "WHERE NOT EXISTS {MATCH (:Person { id: o1.id })-[r1:FOLLOWS]-(:Person {id: o.id})}"
             "RETURN DISTINCT o"
             )
             result = session.read_transaction(
@@ -615,7 +616,6 @@ class Neo4jClient:
                 print("Found following user with id {p} for id {id}".format(
                     p=record["o"], id=id))
             # print(list(map(lambda elem: elem["o"],result)))
-            print(len(result))
             return [] if not result else list(map(lambda elem: elem["o"],result))
 
     def get_followed_users(self,id: int):
@@ -686,8 +686,6 @@ class Neo4jClient:
             for record in result:
                 print("Found following user repos with id {r} where user with id {id} doesn't contribute/own".format(
                     r=record["r"], id=id))
-            # print(list(map(lambda elem: elem["r"],result)))
-            print(len(result))
             return [] if not result else list(map(lambda elem: elem["r"],result))
 
     # @staticmethod

@@ -32,7 +32,6 @@ async def get_users(response: Response, order_by: UserOrderBy = UserOrderBy.foll
     users, total_pages = await mongo_client.get_users(order_by.value, asc, page-1,limit)
     if users:
         return PaginatedResponseModel(users, page, limit, total_pages)
-    response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([], "No content")
 
 @router.get("/{username}", response_description="Username information")
@@ -56,7 +55,6 @@ async def get_following(response: Response, username: str, order_by: UserOrderBy
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
         else:
-            response.status_code = status.HTTP_204_NO_CONTENT
             return ResponseModel([], "No content")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
@@ -74,7 +72,6 @@ async def get_following(response : Response, username: str, order_by: UserOrderB
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
         else:
-            response.status_code = status.HTTP_204_NO_CONTENT
             return ResponseModel([], "No content")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
@@ -130,7 +127,6 @@ async def get_reviews(response : Response, username: str, order_by: ReviewOrderB
             users, total_pages = await mongo_client.get_reviews_with_repo(review_ids, order_by.value, asc, page-1, limit)
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
-        response.status_code = status.HTTP_204_NO_CONTENT
         return ResponseModel([],  "No content")
     response.status_code = status.HTTP_404_NOT_FOUND
     return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
@@ -153,37 +149,43 @@ async def edit_user(response : Response, username: str, req: UpdateUserModel = B
 
 @router.get("/{username}/recommended/repos", response_description="Users retrieved")
 async def get_recommended_repos(response : Response, username: str, depth: int = 1, page: int = 1, limit: int = 10):
-	user = await mongo_client.get_user(username)
-	if user:
-		recommended_ids = neo_client.get_recommended_repos(user['_id'], depth=depth+1)
-		if recommended_ids:
-			repo_reviews_dict = {}
-			for repo_id in recommended_ids:
-				reviews = neo_client.get_reviews_for_repo(repo_id)
-				if not reviews:
-					reviews = []
-				print(reviews)
-				repo_reviews_dict[repo_id] = reviews
-			
-			repos, total_pages = await mongo_client.get_repos_recommendations_by_id(user,recommended_ids, repo_reviews_dict, page-1, limit)
-			return PaginatedResponseModel(repos, page, limit, total_pages)
-		else:
-                        response.status_code = status.HTTP_204_NO_CONTENT
-			return {"message": "No recommendations found", "most_starred_repos_url": f"http://{server_url}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10"}
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User not found")
+    user = await mongo_client.get_user(username)
+    if user:
+        recommended_ids = neo_client.get_recommended_repos(user['_id'], depth=depth+1)
+        print("base amount of repos: " + str(len(recommended_ids)))
+        if recommended_ids:
+            repo_reviews_dict = {}
+            for repo_id in recommended_ids:
+                reviews = neo_client.get_reviews_for_repo(repo_id)
+                if not reviews:
+                    reviews = []
+                # print(reviews)
+                repo_reviews_dict[repo_id] = reviews
+            
+
+            repos, total_pages = await mongo_client.get_repos_recommendations_by_id(user,recommended_ids, repo_reviews_dict, page-1, limit)
+            return PaginatedResponseModel(repos, page, limit, total_pages)
+        else:
+            return {
+                "message": "No recommendations found", 
+                "most_starred_repos_url": f"http://{server_url}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10"
+            }
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return ErrorResponseModel("Not found", 404, "User not found")
+
+
 
 
 @router.get("/{username}/recommended/users", response_description="Retrieves recommended users for specified user")
 async def get_recommended_users(response: Response, username: str, depth: int = 1, page: int = 1, limit: int = 10):
-	user = await mongo_client.get_user(username)
-	if user:
-		recommended_ids = neo_client.get_recommended_users(user['_id'], depth=depth+1)
-		if recommended_ids:
-			users, total_pages = await mongo_client.get_user_recommendations_by_id(user,recommended_ids, page-1, limit)
-			return PaginatedResponseModel(users, page, limit, total_pages)
-		else:
-                        response.status_code = status.HTTP_204_NO_CONTENT
-			return {"message": "No recommendations found", "most_followed_users_url": f"http://{server_url}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"}
-        response.status_code = status.HTTP_404_NOT_FOUND
-	return ResponseModel([], "No content")
+    user = await mongo_client.get_user(username)
+    if user:
+        recommended_ids = neo_client.get_recommended_users(user['_id'], depth=depth+1)
+        print("base amount of users: " + str(len(recommended_ids)))
+        if recommended_ids:
+            users, total_pages = await mongo_client.get_user_recommendations_by_id(user,recommended_ids, page-1, limit)
+            return PaginatedResponseModel(users, page, limit, total_pages)
+        else:
+            return {"message": "No recommendations found", "most_followed_users_url": f"http://{server_url}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"}
+    response.status_code = status.HTTP_404_NOT_FOUND
+    return ResponseModel([], "No content")
