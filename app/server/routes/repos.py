@@ -1,5 +1,5 @@
 from server.models.response_model_types import PaginatedResponseModel
-from server.models.review import ReviewSchema
+from server.models.review import ReviewSchema, UpdateReviewModel, DeleteReviewModel
 from typing import Optional
 from fastapi import APIRouter, Body
 from fastapi.encoders import jsonable_encoder
@@ -52,22 +52,4 @@ async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy
     return ResponseModel(review_ids,  "Empty list returned")
 
 
-# Create new review
-@router.post("/{username}/{reponame}/review", response_description="Create new review")
-async def post_repo_review(username: str, reponame: str, review: ReviewSchema):
-    review = review.dict()
-    reviewer = await mongo_client.get_user(review['reviewer'])
-    repo = await mongo_client.get_repo(username,reponame)
-    if reviewer and repo:
-        relation = neo_client.get_review(reviewer['_id'],repo['_id'])
-        if not relation:
-            new_review = await mongo_client.insert_review(review)
-            if new_review:
-                new_relation = neo_client.create_review(reviewer['_id'],repo['_id'], str(new_review['_id']))
-                return ResponseModel(new_review, "Successfully created new review")
-    #TODO: change to apropiate response in failure
-    return ResponseModel([], "Bad request")
-
-# @router.put("/{username}/{reponame}/review", response_description="Edit a review")
-# @router.delete("/{username}/{reponame}/review", response_description="Delete a review")
 

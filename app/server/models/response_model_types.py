@@ -25,7 +25,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 def ResponseModel(data, message):
     return {
-        "data": [data],
+        "data": data,
         "message": message,
     }
 
