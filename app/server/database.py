@@ -253,12 +253,12 @@ class MongoClient:
                         "$sum" : [
                             {"$multiply": 
                                 [
-                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.3
+                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.2
                                 ]
                             },
                             {"$multiply": 
                                 [
-                                    { "$cond": [ { "$eq": [ max_stars, 0 ] }, 0, {"$divide":["$stars", max_stars]} ] },0.4
+                                    { "$cond": [ { "$eq": [ max_stars, 0 ] }, 0, {"$divide":["$stars", max_stars]} ] },0.3
                                 ]
                             },
                             {"$multiply":
@@ -276,7 +276,7 @@ class MongoClient:
                                                 "cond": {"$in": ["$$this",user_langs]}
                                             }
                                         }
-                                    }, max_langs]} ] },0.2
+                                    }, max_langs]} ] },0.4
                                 ]
                             },
                         ]
