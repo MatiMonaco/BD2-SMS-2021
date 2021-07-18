@@ -237,6 +237,7 @@ class MongoClient:
             }
         ]
         max_stars, max_forks, max_langs, max_update = 0, 0, 0, 0
+        max_avg_rating = 5
         async for maximum_vals in self.repos_collection.aggregate(max_pipeline):
             max_stars = maximum_vals['max_stars']
             max_forks = maximum_vals['max_forks']
@@ -260,6 +261,7 @@ class MongoClient:
                     "updated_at": 1,
                     "forks_count": 1,
                     "html_url": 1,
+                    "avg_rating": { "$ifNull": [ "$avg_rating", 0 ] },
                     "score" : {
                         "$sum" : [
                             {"$multiply": 
@@ -269,12 +271,17 @@ class MongoClient:
                             },
                             {"$multiply": 
                                 [
-                                    { "$cond": [ { "$eq": [ max_stars, 0 ] }, 0, {"$divide":["$stars", max_stars]} ] },0.4
+                                    { "$cond": [ { "$eq": [ max_stars, 0 ] }, 0, {"$divide":["$stars", max_stars]} ] },0.3
                                 ]
                             },
                             {"$multiply":
                                 [
-                                    { "$cond": [ { "$eq": [ max_forks, 0 ] }, 0, {"$divide":["$forks_count", max_forks]} ] },0.3
+                                    { "$cond": [ { "$eq": [ max_forks, 0 ] }, 0, {"$divide":["$forks_count", max_forks]} ] },0.05
+                                ]
+                            },
+                            {"$multiply":
+                                [
+                                    {"$divide":[{ "$ifNull": [ "$avg_rating", 0 ] }, max_avg_rating]}, 0.1
                                 ]
                             },
                             {"$multiply": 
@@ -287,7 +294,7 @@ class MongoClient:
                                                 "cond": {"$in": ["$$this",user_langs]}
                                             }
                                         }
-                                    }, max_langs]} ] },0.3
+                                    }, max_langs]} ] },0.35
                                 ]
                             },
                         ]
