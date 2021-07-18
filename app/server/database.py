@@ -15,7 +15,8 @@ with open("app/config.json") as file:
     server_port = config["server_port"]
 
 # mongodb
-MONGO_DETAILS = "mongodb://localhost:27017"
+MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
+
 NEO4J_DETAILS = "neo4j://localhost:7474"
 
 def normalize_data(data, max):
@@ -27,7 +28,8 @@ def normalize_data(data, max):
 class MongoClient:
     def __init__(self,port: int):
         #TODO: crear indice en fullname 
-        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
+       # self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
+        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DETAILS)
         self.network_db = self.mongo_client['network'] 
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
