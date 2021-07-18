@@ -1,6 +1,4 @@
 from server.models.response_model_types import PaginatedResponseModel
-from server.models.review import ReviewSchema, UpdateReviewModel, DeleteReviewModel
-from typing import Optional
 from fastapi import APIRouter, Body
 from fastapi.encoders import jsonable_encoder
 from server.database import mongo_client, neo_client
