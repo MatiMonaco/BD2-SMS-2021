@@ -115,6 +115,11 @@ class MongoClient:
             repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
+    async def get_repo_by_id(self, repo_id):
+        repo = await self.repos_collection.find_one({'_id': repo_id})
+        return repo
+
+
     async def get_user(self, username: str):
         user = await self.users_collection.find_one({'username': username})
         return user
@@ -122,6 +127,12 @@ class MongoClient:
     async def update_user(self, id:str, data: dict):
         updated_user = await self.users_collection.update_one({"_id": id}, {"$set": data})
         if updated_user:
+            return True
+        return False
+
+    async def update_repo(self, id:str, data: dict):
+        updated_repo = await self.repos_collection.update_one({"_id": id}, {"$set": data})
+        if updated_repo:
             return True
         return False
 
@@ -170,6 +181,8 @@ class MongoClient:
         return users,total_pages
     
     async def get_avg_reviews_rating(self,review_ids: list):
+        if not review_ids:
+            return 0
         review_ids = [ObjectId(id) for id in review_ids]
         pipeline = [
             {"$match": 
@@ -545,6 +558,21 @@ class Neo4jClient:
                 print("Found reviews {r} for repository {repo}".format(
                     r=record, repo=repo_id))
             return None if not result else result
+
+    def get_repo_by_review(self, review_id):
+        with self.driver.session() as session:
+            query = (
+                "MATCH (o1:Person)-[r {id: $review_id}]->(o:Repository) "
+            "RETURN o"
+            )
+            result = session.read_transaction(
+                self._get_nodes, query, "o", review_id=review_id)
+            for record in result:
+                print("Found repo {r} for review {review}".format(
+                    r=record["o"], review=review_id))
+            return None if not result else result[0]["o"]
+
+
 
     def get_reviews_for_user(self,user_id):
         with self.driver.session() as session:

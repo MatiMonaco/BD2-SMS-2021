@@ -37,9 +37,18 @@ async def post_repo_review(response: Response, req: ReviewSchema = Body(...)):
         new_review = await mongo_client.insert_review(req)
         if new_review:
             new_relation = neo_client.create_review(reviewer['_id'],repo['_id'], str(new_review['_id']))
-            return ResponseModel(new_review, "Successfully created new review")
+            review_ids = neo_client.get_reviews_for_repo(repo['_id'])
+            new_rating = await mongo_client.get_avg_reviews_rating(review_ids)
+            # update repo average
+            repo['avg_rating'] = new_rating
+            updated_repo = await mongo_client.update_repo(repo['_id'], repo)
+            if updated_repo:
+                return ResponseModel(new_review, "Successfully created new review")
+            else:
+                response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+                return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
         else:
-            response.status_code = status.HTTP_404_NOT_FOUND
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
     #TODO: change to apropiate response in failure
     response.status_code = status.HTTP_409_CONFLICT
@@ -49,9 +58,19 @@ async def post_repo_review(response: Response, req: ReviewSchema = Body(...)):
 async def edit_review(response: Response, review_id: str, req: UpdateReviewModel = Body(...)):
     req = {k:v for k, v in req.dict().items() if v is not None}
     review = await mongo_client.get_review(review_id)
+    repo_id = neo_client.get_repo_by_review(review_id)
     if review:
-        updated_review = await mongo_client.update_review(review['_id'], req)
-        if updated_review:
+        updated_review = await mongo_client.update_review(review["_id"], req)
+        # get repo
+        repo = await mongo_client.get_repo_by_id(repo_id)
+        # get review ids
+        review_ids = neo_client.get_reviews_for_repo(repo["_id"])
+        # get average score
+        new_rating = await mongo_client.get_avg_reviews_rating(review_ids)
+        # update repo
+        repo['avg_rating'] = new_rating
+        updated_repo = await mongo_client.update_repo(repo["_id"], repo)
+        if updated_review and updated_repo:
             return ResponseModel("Review update", "Review updated successfully")
         else:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -63,11 +82,21 @@ async def edit_review(response: Response, review_id: str, req: UpdateReviewModel
 @router.delete("/{review_id}", response_description="Delete review")
 async def post_repo_review(response: Response, review_id: str):
     review = await mongo_client.get_review(review_id)
+    repo_id = neo_client.get_repo_by_review(review_id)
     if review:
         deleted_relation = neo_client.delete_review(review_id)
-        deleted_review = mongo_client.delete_review(review_id)
+        deleted_review = await mongo_client.delete_review(review_id)
+        # get repo
+        repo = await mongo_client.get_repo_by_id(repo_id)
+        # get review ids
+        review_ids = neo_client.get_reviews_for_repo(repo['_id'])
+        # get average score
+        new_rating = await mongo_client.get_avg_reviews_rating(review_ids)
+        # update repo
+        repo['avg_rating'] = new_rating
+        updated_repo = await mongo_client.update_repo(repo['_id'], repo)
 
-        if not deleted_relation or not deleted_review:
+        if not deleted_relation or not deleted_review or not updated_repo:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
         else:
