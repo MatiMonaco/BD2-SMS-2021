@@ -234,7 +234,7 @@ class MongoClient:
                         "$sum" : [
                             {"$multiply": 
                                 [
-                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.2
+                                    { "$cond": [ { "$eq": [ max_update, 0 ] }, 0, {"$divide":[{"$toDouble": {"$toDate": "$updated_at"}}, max_update]} ] },0.3
                                 ]
                             },
                             {"$multiply": 
@@ -244,7 +244,7 @@ class MongoClient:
                             },
                             {"$multiply":
                                 [
-                                    { "$cond": [ { "$eq": [ max_forks, 0 ] }, 0, {"$divide":["$forks_count", max_forks]} ] },0.3
+                                    { "$cond": [ { "$eq": [ max_forks, 0 ] }, 0, {"$divide":["$forks_count", max_forks]} ] },0.1
                                 ]
                             },
                             {"$multiply": 
@@ -257,7 +257,7 @@ class MongoClient:
                                                 "cond": {"$in": ["$$this",user_langs]}
                                             }
                                         }
-                                    }, max_langs]} ] },0.3
+                                    }, max_langs]} ] },0.2
                                 ]
                             },
                         ]
@@ -369,7 +369,7 @@ class MongoClient:
                                         "cond": {"$in": ["$$this",user_langs]}
                                     }
                                 }
-                            }, max_langs]} ] },0.3
+                            }, max_langs]} ] },0.4
                         ]
                     },
                 ]
