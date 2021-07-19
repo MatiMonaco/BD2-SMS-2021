@@ -9,11 +9,12 @@ import json
 import time
 from datetime import datetime
 
-with open("app/config.json") as file:
-    config = json.load(file)
-    server_url = config["server_url"]
-    server_port = config["server_port"]
-
+# with open("app/config.json") as file:
+#     config = json.load(file)
+#     server_url = config["server_url"]
+#     server_port = config["server_port"]
+server_url = process.env.SERVER_URL
+server_port = process.env.SERVER_PORT
 # mongodb
 MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
 
