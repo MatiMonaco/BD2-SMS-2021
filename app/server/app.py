@@ -1,18 +1,19 @@
 from fastapi import FastAPI, Response, status
-from server.routes.repos import router as ReposRouter
-from server.routes.users import router as UsersRouter
-from server.routes.reviews import router as ReviewsRouter
+from app.server.routes.repos import router as ReposRouter
+from app.server.routes.users import router as UsersRouter
+from app.server.routes.reviews import router as ReviewsRouter
 from pydantic import BaseModel, Field
 from github import Github, GithubException
-from server.database import mongo_client, neo_client
+from app.server.database import mongo_client, neo_client
 import json
+import os
 class UsernameSchema(BaseModel):
     username: str = Field(...)
 
-with open("app/config.json") as file:
-    config = json.load(file)
-    github_api_token = config["github_api_token"]
-
+# with open("app/config.json") as file:
+    # config = json.load(file)
+    # github_api_token = config["github_api_token"]
+github_api_token = os.environ.get('GITHUB_API_TOKEN')
 app = FastAPI()
 
 

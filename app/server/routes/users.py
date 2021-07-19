@@ -1,21 +1,22 @@
 from fastapi import APIRouter, Body, status, Response
 from fastapi.encoders import jsonable_encoder
-from server.models.status_code_enum import StatusCodeEnum
-from server.database import mongo_client, neo_client
+from app.server.models.status_code_enum import StatusCodeEnum
+from app.server.database import mongo_client, neo_client
 import json
 from enum import Enum
-from server.models.response_model_types import (
+from app.server.models.response_model_types import (
     ErrorResponseModel,
     ResponseModel,
     PaginatedResponseModel
 )
-from server.models.user import UserSchema, UpdateUserModel
-
-with open("app/config.json") as file:
-    config = json.load(file)
-    server_url = config["server_url"]
-    server_port = config["server_port"]
-
+from app.server.models.user import UserSchema, UpdateUserModel
+import os
+# with open("app/config.json") as file:
+#     config = json.load(file)
+#     server_url = config["server_url"]
+#     server_port = config["server_port"]
+server_url = os.environ.get('SERVER_URL')
+server_port =os.environ.get('PORT')
 router = APIRouter()
 
 class UserOrderBy(str, Enum):
