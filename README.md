@@ -99,10 +99,10 @@ estructura:
 ```
 SERVER_HOST=127.0.0.1
 PORT=8000
-MONGO_DETAILS:mongodb://localhost:27017/
-NEO4J_DETAILS=neo4j://localhost:7474/
-NEO4J_USER:admin
-NEO4J_PASS:admin
+MONGO_DETAILS=mongodb://localhost:27017
+NEO4J_DETAILS=neo4j://localhost:7687
+NEO4J_USER=admin
+NEO4J_PASS=admin
 GITHUB_API_TOKEN=**token propio para acceder al api de github**
 ```
 
