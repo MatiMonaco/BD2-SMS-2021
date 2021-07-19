@@ -12,7 +12,7 @@
 
 - [TP FINAL BD2 - Persistencia Poliglota](#tp-final-bd2---persistencia-poliglota)
   - [Tabla de Contenidos](#tabla-de-contenidos)
-  - [Empezando](#empezando)
+  - [Introduccion](#introduccion)
     - [Requisitos](#requisitos)
     - [Instalación](#instalación)
       - [Persistencia](#persistencia)
@@ -22,9 +22,22 @@
   - [Funcionalidad](#funcionalidad)
   - [Presentacion](#presentacion)
 
-## Empezando
+## Introduccion
 
-Instrucciones para correr el programa
+Queremos armar una red en la cual tenemos proyectos y usuarios obtenidos a
+través de Github, cada usuario va a poder puntuar y comentar sobre proyectos.
+Se les va a recomendar proyectos en los que puede participar o que le interese
+el contenido según la gente que sigue (que contribuyó a dichos proyectos) y sus
+preferencias de idiomas de programación. Los datos los obtenemos a través de la
+api de github dónde vamos a buscar los repositorios con la mayor cantidad de
+estrellas y sus contribuidores para generar los datos con los que vamos a
+llenar las tablas. Los usuarios se autenticarían a traves de su cuenta de
+Github de donde obtenemos la informacion que necesitemos de su cuenta. Las
+bases de datos que vamos a usar son MongoDB y Neo4j. MongoDB vamos a utilizarlo
+para guardar los datos de los repositorios, los usuarios, los comentarios y
+puntajes sin ningún tipo de relación. Mientras que Neo4j se ocupará de guardar
+exclusivamente las relaciones entre nuestras entidades utilizando unicamente un
+id.
 
 ### Requisitos
 
@@ -80,7 +93,7 @@ pip3 install -r requirements.txt
 
 **Env**
 
-Hay que crear un archivo 'env' (sin punto previo ni extensión) en la carpeta raíz del proyecto con la siguiente
+Hay que crear un archivo '.env' (con punto previo pero sin extensión) en la carpeta raíz del proyecto con la siguiente
 estructura:
 
 ```
@@ -116,7 +129,7 @@ python3 main.py
 ```
 
 Luego se podrá acceder al api desde el navegador en el url y puerto utilizado
-en el archivo 'env', por defecto http://localhost:8000/docs
+en el archivo '.env', por defecto http://localhost:8000/docs
 
 ## Popular bases de datos
 
@@ -137,3 +150,133 @@ Se puede agregar información a las bases de datos de dos maneras.
 ## Funcionalidad
 
 La siguiente lista consiste de todos los endpoints del api, lo que hacen y ejemplos de parámetros para cada uno.
+
+**User register**
+
+- `POST /register`
+
+  Recibe un usuario de github y lo registra a la aplicación siguiendo el formato mencionado en la sección anterior.
+
+  Necesita un cuerpo con el siguiente formato:
+
+  ```json
+  {
+    "username": "nombre_del_usuario"
+  }
+  ```
+
+**Repos**
+
+- `GET /repos`
+
+  Devuelve un arreglo con todos los repos de la aplicación.
+
+- `GET /repos/{username}/{reponame}`
+
+  Devuelve la información de un repo en particular. `username` es el nombre
+  del dueño del repo y `reponame` es el nombre del repo.
+
+  Por ejemplo para ver la información de este repo en particular se tendría que
+  hacer un `GET` al endpoint `/repos/MatiMonaco/BD2-SMS-2021`
+
+- `GET /repos/{username}/{reponame}/reviews`
+
+  Similar al anterior, pero devuelve todas las reseñas hechas a un repositorio.
+
+**Users**
+
+- `GET /users`
+
+  Devuelve un arreglo con todos los usuarios de la aplicación.
+
+- `GET /users/{username}`
+
+  Devuelve la información de un usuario en particular.
+
+- `PUT /users/{username}`
+
+  Permite cambiar la información de un usuario en particular.
+
+  Necesita un cuerpo con el siguiente formato:
+
+  ```json
+  {
+    "name": "Nombre Apellido",
+    "avatar_url": "url a la foto",
+    "bio": "Texto descriptivo del usuario",
+    "languages": ["Lenguajes", "que", "utiliza", "el", "usuario"],
+    "following": 0,
+    "followers": 0,
+    "html_url": "url al perfil de github del usuario"
+  }
+  ```
+
+- `GET /users/{username}/following`
+
+  Devuelve un arreglo de usuarios seguidos por el usuario que recibe por url.
+
+- `GET /users/{username}/followed_by`
+
+  Devuelve un arreglo de usuarios que siguen al usuario que recibe por url.
+
+- `POST /users/{username}/follow/{other_username}`
+
+  Hace que el usuario `username` siga al usuario `other_username`.
+
+- `POST /users/{username}/unfollow/{other_username}`
+
+  Hace que el usuario `username` deje de seguir al usuario `other_username`.
+
+- `GET /users/{username}/reviews`
+
+  Devuelve un arreglo de todas las reseñas hechas por el usuario.
+
+- `GET /users/{username}/recommended/repos`
+
+  Devuelve un arreglo de repositorios recomendados para el usuario `username` ordenados por nuestro algoritmo de recomendación.
+
+- `GET /users/{username}/recommended/users`
+
+  Devuelve un arreglo de usuarios recomendados para el usuario `username` ordenados por nuestro algoritmo de recomendación.
+
+**Reviews**
+
+- `POST /reviews`
+
+  Crea una reseña a una repo.
+
+  Necesita un cuerpo con el siguiente formato:
+
+  ```json
+  {
+    "reviewer": "username de la persona haciendo la reseña",
+    "repo_name": "nombre completo del repositorio (ej: MatiMonaco/BD2-SMS-2021)",
+    "score": 5,
+    "comment": "comentario acerca del repositorio"
+  }
+  ```
+
+  con el valor `score` siendo un numero con decimales entre 0 y 5.
+
+- `PUT /reviews/{review_id}`
+
+  Permite cambiar la información de una reseña en particular.
+
+  Necesita un cuerpo con el siguiente formato:
+
+  ```json
+  {
+    "score": 5,
+    "comment": "un comentario"
+  }
+  ```
+
+  Ambos parámetros son opcionales, dejando el valor anterior en su ausencia.
+
+- `DELETE /reviews/{review_id}`
+
+  Borra una reseña.
+
+## Presentacion
+
+[Link a la presentacion](https://docs.google.com/presentation/d/134trzpC-L5x3JhsrilmSkhCyVLgIgSQ3v2Bx9AAffJo/edit#slide=id.ge0dd50c000_0_65)
