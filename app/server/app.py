@@ -6,15 +6,13 @@ from pydantic import BaseModel, Field
 from github import Github, GithubException
 from app.server.database import mongo_client, neo_client
 import json
-from config import config
+from app.config import config
 
 class UsernameSchema(BaseModel):
     username: str = Field(...)
 
-# with open("app/config.json") as file:
-    # config = json.load(file)
-    # github_api_token = config["github_api_token"]
-github_api_token = config.GITHUB_API_TOKEN
+
+github_api_token = config['GITHUB_API_TOKEN']
 app = FastAPI()
 
 

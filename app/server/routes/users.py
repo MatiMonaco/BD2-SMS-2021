@@ -10,13 +10,10 @@ from app.server.models.response_model_types import (
     PaginatedResponseModel
 )
 from app.server.models.user import UserSchema, UpdateUserModel
-from config import config
-# with open("app/config.json") as file:
-#     config = json.load(file)
-#     server_url = config["server_url"]
-#     server_port = config["server_port"]
-server_url = config.SERVER_URL
-server_port = config.PORT
+from app.config import config
+
+server_host = config['SERVER_HOST']
+server_port = config['PORT']
 router = APIRouter()
 
 class UserOrderBy(str, Enum):
@@ -93,7 +90,7 @@ async def follow(response : Response, username: str, other_username: str):
         if not result:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return ErrorResponseModel("Something went wrong", 500, "Could not follow")
-    followers_url = f"http://{server_url}:{server_port}/users/{username}/following"
+    followers_url = f"http://{server_host}:{server_port}/users/{username}/following"
     return ResponseModel(followers_url, "Following successfully")
 
 @router.post("/{username}/unfollow/{other_username}", response_description="Stop following another user")
@@ -111,7 +108,7 @@ async def unfollow(response : Response, username: str, other_username: str):
         if not result:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return ErrorResponseModel("Something went wrong", 500, "Could not unfollow")
-    followers_url = f"http://{server_url}:{server_port}/users/{username}/following"
+    followers_url = f"http://{server_host}:{server_port}/users/{username}/following"
     return ResponseModel(followers_url, "Unfollowed successfully")
 
         
@@ -169,7 +166,7 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
         else:
             return {
                 "message": "No recommendations found", 
-                "most_starred_repos_url": f"http://{server_url}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10"
+                "most_starred_repos_url": f"http://{server_host}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10"
             }
     response.status_code = status.HTTP_404_NOT_FOUND
     return ErrorResponseModel("Not found", 404, "User not found")
@@ -187,6 +184,6 @@ async def get_recommended_users(response: Response, username: str, depth: int = 
             users, total_pages = await mongo_client.get_user_recommendations_by_id(user,recommended_ids, page-1, limit)
             return PaginatedResponseModel(users, page, limit, total_pages)
         else:
-            return {"message": "No recommendations found", "most_followed_users_url": f"http://{server_url}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"}
+            return {"message": "No recommendations found", "most_followed_users_url": f"http://{server_host}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"}
     response.status_code = status.HTTP_404_NOT_FOUND
     return ResponseModel([], "No content")

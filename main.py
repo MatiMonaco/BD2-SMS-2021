@@ -1,7 +1,9 @@
 import uvicorn
-from uvicorn import config
-from config import config
 
+from app.config import config
+
+
+print(config)
 
 if __name__ == "__main__":
-    uvicorn.run("app.server.app:app", host=config.SERVER_URL, port=config.PORT, reload=True)
+    uvicorn.run("app.server.app:app", host=config['SERVER_HOST'], port=int(config['PORT']), reload=True)

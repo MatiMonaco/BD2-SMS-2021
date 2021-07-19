@@ -9,11 +9,11 @@ import json
 import time
 from datetime import datetime
 import os
-from config import config
+from app.config import config
 
 
-server_url = config.SERVER_URL
-server_port = config.PORT
+server_host = config['SERVER_HOST']
+server_port = config['PORT']
 # mongodb
 
 
@@ -27,7 +27,7 @@ class MongoClient:
     def __init__(self):
         #TODO: crear indice en fullname 
    
-        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(config.MONGO_DETAILS)
+        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(config['MONGO_DETAILS'])
         self.network_db = self.mongo_client['network'] 
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
@@ -103,7 +103,7 @@ class MongoClient:
         async for repo in self.repos_collection.find(sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
             print(repo)
             full_name = repo['full_name'].split('/')
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
             repos.append(repo)
         return repos,total_pages
 
@@ -112,7 +112,7 @@ class MongoClient:
         # repo = await self.repos_collection.find_one({'full_name': full_name})
         repo = await self.repos_collection.find_one({'full_name': {'$regex': '^{}$'.format(full_name),'$options': 'i'}})
         if repo:
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
     async def get_repo_by_id(self, repo_id):
@@ -203,19 +203,6 @@ class MongoClient:
             return review['avg_score']
         return 0
 
-    # async def get_most_popular_users(self,limit: int):
-    #     users = []
-    #     async for user in self.users_collection.find(sort=[("followers",-1)], limit=limit):
-    #         users.append(user)
-    #     return users
-
-    # async def get_most_starred_repos(self,limit: int):
-    #     repos = []
-    #     async for repo in self.repos_collection.find(sort=[("stars",-1)], limit=limit):
-    #         full_name = repo['full_name'].split('/')
-    #         repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
-    #         repos.append(repo)
-    #     return repos
 
     #TODO: calcular max languajes coincidentes
     async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, repo_rev_dict: dict, page: int, limit: int):
@@ -311,7 +298,7 @@ class MongoClient:
         # lang_matches = {}
         async for repo in self.repos_collection.aggregate(pipeline):
             full_name = repo['full_name'].split('/')
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
+            repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
             # print(f"updated at milis: {repo['updated_at_milis']}, div: {repo['updated_at_milis']/max_update}")
             # print(repo['aux'])
             repo_review_ids = repo_rev_dict.get(repo['_id'])
@@ -472,8 +459,8 @@ class MongoClient:
 class Neo4jClient:
 
     def __init__(self):
-        #self.driver = GraphDatabase.driver("neo4j://localhost:" + str(port), auth=(user, password))
-        self.driver = GraphDatabase.driver(  config.NEO4J_DETAILS)
+     
+        self.driver = GraphDatabase.driver(config['NEO4J_DETAILS'],auth=(config['NEO4J_USER'],config['NEO4J_PASS']))
       
 
     def close(self):
