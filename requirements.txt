@@ -5,3 +5,4 @@ motor
 uvicorn
 neo4j
 requests
+pymongo[srv]
