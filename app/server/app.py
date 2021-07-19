@@ -22,7 +22,7 @@ app.include_router(UsersRouter, tags=["Users"], prefix="/users")
 app.include_router(ReviewsRouter, tags=["Reviews"], prefix="/reviews")
 @app.get("/", tags=["Root"])
 async def root():
-    return {"message": "Hello World"}
+    return {"FastAPI": "https://bd2-sms.herokuapp.com/docs"}
 
 @app.post("/register", tags=["User register"])
 async def register(username: UsernameSchema, response: Response):
