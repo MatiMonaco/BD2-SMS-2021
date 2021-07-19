@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Response, status
-from server.routes.repos import router as ReposRouter
-from server.routes.users import router as UsersRouter
-from server.routes.reviews import router as ReviewsRouter
+from app.server.routes.repos import router as ReposRouter
+from app.server.routes.users import router as UsersRouter
+from app.server.routes.reviews import router as ReviewsRouter
 from pydantic import BaseModel, Field
 from github import Github, GithubException
-from server.database import mongo_client, neo_client
+from app.server.database import mongo_client, neo_client
 import json
 class UsernameSchema(BaseModel):
     username: str = Field(...)

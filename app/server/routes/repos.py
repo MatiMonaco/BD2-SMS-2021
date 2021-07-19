@@ -1,10 +1,10 @@
-from server.models.response_model_types import PaginatedResponseModel
+from app.server.models.response_model_types import PaginatedResponseModel
 from fastapi import APIRouter, Body
 from fastapi.encoders import jsonable_encoder
-from server.database import mongo_client, neo_client
-from server.models.status_code_enum import StatusCodeEnum
+from app.server.database import mongo_client, neo_client
+from app.server.models.status_code_enum import StatusCodeEnum
 from enum import Enum
-from server.models.response_model_types import (
+from app.server.models.response_model_types import (
     ErrorResponseModel,
     ResponseModel,
     # NewsSchema,
