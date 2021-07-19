@@ -1,1 +1,1 @@
-web: python app/main.py
+web: uvicorn app.server.app:app --host 127.0.0.1 --port=8000
