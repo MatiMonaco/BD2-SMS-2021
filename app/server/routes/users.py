@@ -16,7 +16,7 @@ import os
 #     server_url = config["server_url"]
 #     server_port = config["server_port"]
 server_url = os.environ.get('SERVER_URL')
-server_port =os.environ.get('SERVER_PORT')
+server_port =os.environ.get('PORT')
 router = APIRouter()
 
 class UserOrderBy(str, Enum):

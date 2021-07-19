@@ -14,7 +14,7 @@ import os
 #     server_url = config["server_url"]
 #     server_port = config["server_port"]
 server_url = os.environ.get('SERVER_URL')
-server_port =os.environ.get('SERVER_PORT')
+server_port =os.environ.get('PORT')
 # mongodb
 MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
 
