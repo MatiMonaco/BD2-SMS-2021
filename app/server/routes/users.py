@@ -11,11 +11,12 @@ from app.server.models.response_model_types import (
 )
 from app.server.models.user import UserSchema, UpdateUserModel
 
-with open("app/config.json") as file:
-    config = json.load(file)
-    server_url = config["server_url"]
-    server_port = config["server_port"]
-
+# with open("app/config.json") as file:
+#     config = json.load(file)
+#     server_url = config["server_url"]
+#     server_port = config["server_port"]
+server_url = os.environ.get('SERVER_URL')
+server_port =os.environ.get('SERVER_PORT')
 router = APIRouter()
 
 class UserOrderBy(str, Enum):

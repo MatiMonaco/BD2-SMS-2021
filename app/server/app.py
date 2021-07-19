@@ -12,7 +12,7 @@ class UsernameSchema(BaseModel):
 # with open("app/config.json") as file:
     # config = json.load(file)
     # github_api_token = config["github_api_token"]
-github_api_token = process.env.GITHUB_API_TOKEN
+github_api_token = os.environ.get('GITHUB_API_TOKEN')
 app = FastAPI()
 
 
