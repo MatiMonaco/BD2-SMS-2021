@@ -9,16 +9,13 @@ import json
 import time
 from datetime import datetime
 import os
-# with open("app/config.json") as file:
-#     config = json.load(file)
-#     server_url = config["server_url"]
-#     server_port = config["server_port"]
-server_url = os.environ.get('SERVER_URL')
-server_port =os.environ.get('PORT')
-# mongodb
-MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
+from config import config
 
-NEO4J_DETAILS = "neo4j+s://10dacb6b.databases.neo4j.io:7687"
+
+server_url = config.SERVER_URL
+server_port = config.PORT
+# mongodb
+
 
 def normalize_data(data, max):
     # if max-min == 0: return 0
@@ -27,10 +24,10 @@ def normalize_data(data, max):
 
 
 class MongoClient:
-    def __init__(self,port: int):
+    def __init__(self):
         #TODO: crear indice en fullname 
-        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
-        # self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DETAILS)
+   
+        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(config.MONGO_DETAILS)
         self.network_db = self.mongo_client['network'] 
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
@@ -474,9 +471,9 @@ class MongoClient:
 
 class Neo4jClient:
 
-    def __init__(self, port: int, user: str, password: str):
+    def __init__(self):
         #self.driver = GraphDatabase.driver("neo4j://localhost:" + str(port), auth=(user, password))
-        self.driver = GraphDatabase.driver(  NEO4J_DETAILS)
+        self.driver = GraphDatabase.driver(  config.NEO4J_DETAILS)
       
 
     def close(self):
@@ -743,8 +740,8 @@ class Neo4jClient:
     #             query=query, exception=exception))
     #         raise
 
-mongo_client = MongoClient(27017)
-neo_client = Neo4jClient(7687,'admin', 'admin')
+mongo_client = MongoClient()
+neo_client = Neo4jClient()
 
 
 

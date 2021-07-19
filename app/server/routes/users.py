@@ -10,13 +10,13 @@ from app.server.models.response_model_types import (
     PaginatedResponseModel
 )
 from app.server.models.user import UserSchema, UpdateUserModel
-import os
+from config import config
 # with open("app/config.json") as file:
 #     config = json.load(file)
 #     server_url = config["server_url"]
 #     server_port = config["server_port"]
-server_url = os.environ.get('SERVER_URL')
-server_port =os.environ.get('PORT')
+server_url = config.SERVER_URL
+server_port = config.PORT
 router = APIRouter()
 
 class UserOrderBy(str, Enum):
