@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from github import Github, GithubException
 from app.server.database import mongo_client, neo_client
 import json
+import os
 class UsernameSchema(BaseModel):
     username: str = Field(...)
 

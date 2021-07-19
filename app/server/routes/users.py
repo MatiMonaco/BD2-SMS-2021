@@ -10,7 +10,7 @@ from app.server.models.response_model_types import (
     PaginatedResponseModel
 )
 from app.server.models.user import UserSchema, UpdateUserModel
-
+import os
 # with open("app/config.json") as file:
 #     config = json.load(file)
 #     server_url = config["server_url"]
