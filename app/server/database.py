@@ -9,16 +9,13 @@ import json
 import time
 from datetime import datetime
 import os
-# with open("app/config.json") as file:
-#     config = json.load(file)
-#     server_url = config["server_url"]
-#     server_port = config["server_port"]
-server_url = os.environ.get('SERVER_URL')
-server_port =os.environ.get('PORT')
-# mongodb
-MONGO_DETAILS = "mongodb+srv://bd2-sms:bd2sms@cluster0.nxcp1.mongodb.net/network?retryWrites=true&w=majority"
+from app.config import config
 
-NEO4J_DETAILS = "neo4j+s://10dacb6b.databases.neo4j.io:7687"
+
+server_host = config['SERVER_HOST']
+server_port = config['PORT']
+# mongodb
+
 
 def normalize_data(data, max):
     # if max-min == 0: return 0
@@ -27,10 +24,10 @@ def normalize_data(data, max):
 
 
 class MongoClient:
-    def __init__(self,port: int):
+    def __init__(self):
         #TODO: crear indice en fullname 
-        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient("mongodb://localhost:" + str(port))
-        # self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_DETAILS)
+   
+        self.mongo_client = motor.motor_asyncio.AsyncIOMotorClient(config['MONGO_DETAILS'])
         self.network_db = self.mongo_client['network'] 
         self.repos_collection = self.network_db.get_collection("repos")
         self.users_collection = self.network_db.get_collection("users")
@@ -106,7 +103,7 @@ class MongoClient:
         async for repo in self.repos_collection.find(sort=[(order_by,asc_val)],skip=page*limit, limit=limit):
             print(repo)
             full_name = repo['full_name'].split('/')
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
             repos.append(repo)
         return repos,total_pages
 
@@ -115,7 +112,7 @@ class MongoClient:
         # repo = await self.repos_collection.find_one({'full_name': full_name})
         repo = await self.repos_collection.find_one({'full_name': {'$regex': '^{}$'.format(full_name),'$options': 'i'}})
         if repo:
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
+            repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
         return repo
 
     async def get_repo_by_id(self, repo_id):
@@ -206,19 +203,6 @@ class MongoClient:
             return review['avg_score']
         return 0
 
-    # async def get_most_popular_users(self,limit: int):
-    #     users = []
-    #     async for user in self.users_collection.find(sort=[("followers",-1)], limit=limit):
-    #         users.append(user)
-    #     return users
-
-    # async def get_most_starred_repos(self,limit: int):
-    #     repos = []
-    #     async for repo in self.repos_collection.find(sort=[("stars",-1)], limit=limit):
-    #         full_name = repo['full_name'].split('/')
-    #         repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"
-    #         repos.append(repo)
-    #     return repos
 
     #TODO: calcular max languajes coincidentes
     async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, repo_rev_dict: dict, page: int, limit: int):
@@ -314,7 +298,7 @@ class MongoClient:
         # lang_matches = {}
         async for repo in self.repos_collection.aggregate(pipeline):
             full_name = repo['full_name'].split('/')
-            repo['reviews_url'] = f"http://{server_url}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
+            repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
             # print(f"updated at milis: {repo['updated_at_milis']}, div: {repo['updated_at_milis']/max_update}")
             # print(repo['aux'])
             repo_review_ids = repo_rev_dict.get(repo['_id'])
@@ -474,9 +458,9 @@ class MongoClient:
 
 class Neo4jClient:
 
-    def __init__(self, port: int, user: str, password: str):
-        #self.driver = GraphDatabase.driver("neo4j://localhost:" + str(port), auth=(user, password))
-        self.driver = GraphDatabase.driver(  NEO4J_DETAILS)
+    def __init__(self):
+     
+        self.driver = GraphDatabase.driver(config['NEO4J_DETAILS'],auth=(config['NEO4J_USER'],config['NEO4J_PASS']))
       
 
     def close(self):
@@ -743,8 +727,8 @@ class Neo4jClient:
     #             query=query, exception=exception))
     #         raise
 
-mongo_client = MongoClient(27017)
-neo_client = Neo4jClient(7687,'admin', 'admin')
+mongo_client = MongoClient()
+neo_client = Neo4jClient()
 
 
 

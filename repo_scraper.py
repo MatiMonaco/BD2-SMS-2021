@@ -3,10 +3,9 @@ from github import Github
 from pprint import pprint
 import json
 import os
+from config import config
 
-# with open("app/config.json") as file:
-#     config = json.load(file)
-github_api_token = os.environ.get('GITHUB_API_TOKEN')
+github_api_token = config['GITHUB_API_TOKEN']
 g = Github(github_api_token)
 g.per_page = 100
 print(g.rate_limiting)

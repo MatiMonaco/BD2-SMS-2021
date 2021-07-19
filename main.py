@@ -1,11 +1,9 @@
 import uvicorn
-from uvicorn import config
 
-# import json
-# with open("app/config.json") as file:
-#     config = json.load(file)
-#     server_url = config["server_url"]
-#     server_port = config["server_port"]
+from app.config import config
+
+
+print(config)
 
 if __name__ == "__main__":
-    uvicorn.run("app.server.app:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("app.server.app:app", host=config['SERVER_HOST'], port=int(config['PORT']), reload=True)
