@@ -631,7 +631,7 @@ class Neo4jClient:
         with self.driver.session() as session:
             query = (
             "MATCH (o1:Person { id: $o1_id })-[r:FOLLOWS*2.." + str(depth) + "]-(o:Person)"
-            "WHERE NOT EXISTS {MATCH (:Person { id: o1.id })-[r1:FOLLOWS]-(:Person {id: o.id})} AND o1.id <> o.id"
+            "WHERE NOT EXISTS {MATCH (:Person { id: o1.id })-[r1:FOLLOWS]-(:Person {id: o.id})} AND o1.id <> o.id "
             "RETURN DISTINCT o"
             )
             result = session.read_transaction(
