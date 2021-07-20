@@ -99,10 +99,10 @@ estructura:
 ```
 SERVER_HOST=127.0.0.1
 PORT=8000
-MONGO_DETAILS:mongodb://localhost:27017/
-NEO4J_DETAILS=neo4j://localhost:7474/
-NEO4J_USER:admin
-NEO4J_PASS:admin
+MONGO_DETAILS=mongodb://localhost:27017
+NEO4J_DETAILS=neo4j://localhost:7687
+NEO4J_USER=admin
+NEO4J_PASS=admin
 GITHUB_API_TOKEN=**token propio para acceder al api de github**
 ```
 
@@ -143,9 +143,11 @@ Se puede agregar información a las bases de datos de dos maneras.
    que siguen los usuarios que este sigue, y asi sucesivamente hasta una
    determinada profundidad.
 
-2. Utilizando scrapers/script para popular datos.
+2. Utilizando el endpoint `/populate_databases` del api. Este funciona de
+   manera similar al `/register`, pero en vez de utilizar un usuario de base,
+   utiliza los dueños de las 10 repos con más estrellas de todo Github.
 
-**TODO EXPLICAR MEJOR ESTO**
+   Termina generando al rededor 350 usuarios y 2000 repositorios y puede llegar a tardar unos 10min.
 
 ## Funcionalidad
 

@@ -36,8 +36,8 @@ async def register(username: UsernameSchema, response: Response):
         response.status_code = status.HTTP_409_CONFLICT
         return {"message": "Conflict"}
 
-@app.post("/populateDatabase", tags=["User register"])
-async def populateDatabase(response: Response):
+@app.post("/populate_database", tags=["User register"])
+async def populate_database(response: Response):
     g = Github(github_api_token)
     users = set()
  
@@ -48,9 +48,8 @@ async def populateDatabase(response: Response):
         
         user = repo.owner
         print(f"Registering user: {repo.owner.login}")
-       # await add_user_rec(users, user,True,5,5, 0, 2)
+        await add_user_rec(users, user,True,5,5, 0, 3)
         count+=1
-        last_max = repo.stargazers_count
         if count >= max_repos:
                 break
 
@@ -71,7 +70,7 @@ async def add_user_rec(users, user, register,max_following,max_repos,curr_depth,
             print(f"creating user {user.login}")
             user_langs = set()
             users.add(user.id)
-            for i,item in enumerate(user.get_repos()):
+            for i,item in enumerate(user.get_repos(sort='updated')):
                 if i > max_repos:
                     break
               
