@@ -29,18 +29,40 @@ async def register(username: UsernameSchema, response: Response):
     users = set()
     print("register username: "+username.username)
     user = g.get_user(username.username)
-    ret = await add_user_rec(users, user,True, 0, 3)
+    ret = await add_user_rec(users, user,True,5,5, 0, 3)
     if ret:
         return {"message": "Registered"}
     else:
         response.status_code = status.HTTP_409_CONFLICT
         return {"message": "Conflict"}
 
+@app.post("/populateDatabase", tags=["User register"])
+async def populateDatabase(response: Response):
+    g = Github(github_api_token)
+    users = set()
+ 
+    max_repos = 10
+    popular_repos = g.search_repositories(f"stars:1..99999999", sort='stars', order='desc')
+    count = 0
+    for repo in popular_repos:
+        
+        user = repo.owner
+        print(f"Registering user: {repo.owner.login}")
+       # await add_user_rec(users, user,True,5,5, 0, 2)
+        count+=1
+        last_max = repo.stargazers_count
+        if count >= max_repos:
+                break
 
-MAX_CONTRIBUTORS_PER_REPO = 5
-MAX_REPOS_PER_USER = 5
-MAX_FOLLOWING_PER_USER = 5
-async def add_user_rec(users, user, register,curr_depth, max_depth=2):
+   # ret = await add_user_rec(users, user,True,5,5, 0, 3)
+  
+    return {"message": f"Registered {count} users"}
+
+
+
+
+
+async def add_user_rec(users, user, register,max_following,max_repos,curr_depth, max_depth=3):
         mongo_user = await mongo_client.get_user(user.login)
         registered = False
         if mongo_user:
@@ -50,7 +72,7 @@ async def add_user_rec(users, user, register,curr_depth, max_depth=2):
             user_langs = set()
             users.add(user.id)
             for i,item in enumerate(user.get_repos()):
-                if i > MAX_REPOS_PER_USER:
+                if i > max_repos:
                     break
               
                 fullname = item.full_name.split('/')
@@ -89,11 +111,11 @@ async def add_user_rec(users, user, register,curr_depth, max_depth=2):
                 if (user.following > 0):
                     following = user.get_following()
                     for i,follow in enumerate(following):
-                        if i > MAX_FOLLOWING_PER_USER:
+                        if i > max_following:
                             break
                         print(f"trying to create {follow.login} followed by {user.login}")
                         neo_client.create_following(user.id,follow.id) 
-                        await add_user_rec(users, follow,False, curr_depth+1,max_depth)
+                        await add_user_rec(users, follow,False,5,5, curr_depth+1,max_depth)
             return True
         else:
             return False
