@@ -5,7 +5,7 @@ from app.server.database import mongo_client, neo_client
 import json
 from enum import Enum
 from app.server.models.response_model_types import (
-    ErrorResponseModel,
+
     ResponseModel,
     PaginatedResponseModel
 )
@@ -30,6 +30,7 @@ async def get_users(response: Response, order_by: UserOrderBy = UserOrderBy.foll
     users, total_pages = await mongo_client.get_users(order_by.value, asc, page-1,limit)
     if users:
         return PaginatedResponseModel(users, page, limit, total_pages)
+    response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([], "No content")
 
 @router.get("/{username}", response_description="Username information")
@@ -38,7 +39,8 @@ async def get_user(response: Response, username: str):
     if user:
         return ResponseModel(user, "User returned successfully") 
     response.status_code = status.HTTP_404_NOT_FOUND
-    return ErrorResponseModel("Not found", 404,  "User not found")
+    return ResponseModel([], "User not found")
+
 
 @router.get("/{username}/following", response_description="Users followed by the user")
 async def get_following(response: Response, username: str, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
@@ -53,10 +55,11 @@ async def get_following(response: Response, username: str, order_by: UserOrderBy
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
         else:
+            response.status_code = status.HTTP_204_NO_CONTENT
             return ResponseModel([], "No content")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User not found")
+        return ResponseModel([], "User not found")
 
 @router.get("/{username}/followed_by", response_description="Users that follow the user")
 async def get_following(response : Response, username: str, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
@@ -70,10 +73,11 @@ async def get_following(response : Response, username: str, order_by: UserOrderB
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
         else:
+            response.status_code = status.HTTP_204_NO_CONTENT
             return ResponseModel([], "No content")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User not found")
+        return ResponseModel([], "User not found")
 
 @router.post("/{username}/follow/{other_username}", response_description="Follow another user")
 async def follow(response : Response, username: str, other_username: str):
@@ -81,15 +85,15 @@ async def follow(response : Response, username: str, other_username: str):
     other_user = await mongo_client.get_user(other_username) 
     if not user:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
+        return ResponseModel([], "User {} does not exist".format(username))
     if not other_user:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(other_username))
+        return ResponseModel([],"User {} does not exist".format(other_username))
     if not neo_client.is_following(user['_id'], other_user['_id']):
         result = neo_client.create_following(user['_id'], other_user['_id'])
         if not result:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return ErrorResponseModel("Something went wrong", 500, "Could not follow")
+            return ResponseModel([], "Could not follow")
     followers_url = f"http://{server_host}:{server_port}/users/{username}/following"
     return ResponseModel(followers_url, "Following successfully")
 
@@ -99,15 +103,15 @@ async def unfollow(response : Response, username: str, other_username: str):
     other_user = await mongo_client.get_user(other_username) 
     if not user:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
+        return ResponseModel([], "User {} does not exist".format(username))
     if not other_user:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User {} does not exist".format(other_username))
+        return ResponseModel([],"User {} does not exist".format(other_username))
     if neo_client.is_following(user['_id'], other_user['_id']):
         result = neo_client.delete_following(user['_id'], other_user['_id'])
         if not result:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return ErrorResponseModel("Something went wrong", 500, "Could not unfollow")
+            return ResponseModel([], "Could not unfollow")
     followers_url = f"http://{server_host}:{server_port}/users/{username}/following"
     return ResponseModel(followers_url, "Unfollowed successfully")
 
@@ -125,9 +129,10 @@ async def get_reviews(response : Response, username: str, order_by: ReviewOrderB
             users, total_pages = await mongo_client.get_reviews_with_repo(review_ids, order_by.value, asc, page-1, limit)
             # return paginated response
             return PaginatedResponseModel(users, page, limit, total_pages)
+        response.status_code = status.HTTP_204_NO_CONTENT
         return ResponseModel([],  "No content")
     response.status_code = status.HTTP_404_NOT_FOUND
-    return ErrorResponseModel("Not found", 404, "User {} does not exist".format(username))
+    return ResponseModel([], "User {} does not exist".format(username))
 
 
 @router.put("/{username}", response_description="Edit user")
@@ -140,17 +145,17 @@ async def edit_user(response : Response, username: str, req: UpdateUserModel = B
             return ResponseModel("User {} updated successfully".format(username), "User updated successfully")
         else:
             response.status_code = status.HTTP_404_NOT_FOUND
-            return ErrorResponseModel("An error ocurred", 404, "There was an error updating the user data")
+            return ResponseModel([], "There was an error updating the user data")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User not found")
+        return ResponseModel([], "User not found")
 
 @router.get("/{username}/recommended/repos", response_description="Users retrieved")
 async def get_recommended_repos(response : Response, username: str, depth: int = 1, page: int = 1, limit: int = 10):
     user = await mongo_client.get_user(username)
     if user:
         recommended_ids = neo_client.get_recommended_repos(user['_id'], depth=depth+1)
-        print("base amount of repos: " + str(len(recommended_ids)))
+    
         if recommended_ids:
             repo_reviews_dict = {}
             for repo_id in recommended_ids:
@@ -166,11 +171,10 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
         else:
             return {
                 "message": "No recommendations found", 
-                "most_starred_repos_url": f"http://{server_host}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10",
-                "most_followed_users_url": f"http://{server_host}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"
+                "most_starred_repos_url": f"http://{server_host}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10"
             }
     response.status_code = status.HTTP_404_NOT_FOUND
-    return ErrorResponseModel("Not found", 404, "User not found")
+    return ResponseModel([], "User not found")
 
 
 
@@ -186,5 +190,5 @@ async def get_recommended_users(response: Response, username: str, depth: int = 
             return PaginatedResponseModel(users, page, limit, total_pages)
         else:
             return {"message": "No recommendations found", "most_followed_users_url": f"http://{server_host}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"}
-    response.status_code = status.HTTP_404_NOT_FOUND
+    response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([], "No content")
