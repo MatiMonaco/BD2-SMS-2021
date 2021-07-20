@@ -143,9 +143,11 @@ Se puede agregar información a las bases de datos de dos maneras.
    que siguen los usuarios que este sigue, y asi sucesivamente hasta una
    determinada profundidad.
 
-2. Utilizando scrapers/script para popular datos.
+2. Utilizando el endpoint `/populate_databases` del api. Este funciona de
+   manera similar al `/register`, pero en vez de utilizar un usuario de base,
+   utiliza los dueños de las 10 repos con más estrellas de todo Github.
 
-**TODO EXPLICAR MEJOR ESTO**
+   Termina generando al rededor 350 usuarios y 2000 repositorios y puede llegar a tardar unos 10min.
 
 ## Funcionalidad
 
