@@ -166,7 +166,8 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
         else:
             return {
                 "message": "No recommendations found", 
-                "most_starred_repos_url": f"http://{server_host}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10"
+                "most_starred_repos_url": f"http://{server_host}:{server_port}/repos/?order_by=stars&asc=false&page=1&limit=10",
+                "most_followed_users_url": f"http://{server_host}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"
             }
     response.status_code = status.HTTP_404_NOT_FOUND
     return ErrorResponseModel("Not found", 404, "User not found")
