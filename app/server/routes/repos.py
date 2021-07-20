@@ -6,7 +6,6 @@ from app.server.database import mongo_client, neo_client
 from app.server.models.status_code_enum import StatusCodeEnum
 from enum import Enum
 from app.server.models.response_model_types import (
-    ErrorResponseModel,
     ResponseModel,
     # NewsSchema,
 )
@@ -28,6 +27,8 @@ async def get_repos(response : Response, order_by: RepoOrderBy = RepoOrderBy.cre
     repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
     if repos:
         return PaginatedResponseModel(repos, page, limit, total_pages)
+
+    response.status_code = status.HTTP_204_NO_CONTENT    
     return ResponseModel([], "No content")
 
 @router.get("/{username}/{reponame}", response_description="Returns information asociated to the requested repository")
@@ -36,7 +37,7 @@ async def get_repo_by_name_and_username(response : Response, username: str, repo
     if repos:
         return ResponseModel(repos,  "Retrieved requested repository")
     response.status_code = status.HTTP_404_NOT_FOUND
-    return ErrorResponseModel("Not Found", 404, "Repository not found")
+    return ResponseModel([],"Repository not found")
 
 @router.get("/{username}/{reponame}/reviews", response_description="Retrieved reviews for requested repository")
 async def get_repo_reviews(response: Response, username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
@@ -48,6 +49,7 @@ async def get_repo_reviews(response: Response, username: str, reponame: str, ord
         if review_ids:
             reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page-1,limit)
             return PaginatedResponseModel(reviews,page,limit,total_pages)
+    response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([],  "No content")
 
 

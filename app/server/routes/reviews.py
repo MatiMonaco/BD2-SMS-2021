@@ -5,7 +5,7 @@ from app.server.database import mongo_client, neo_client
 from app.server.models.status_code_enum import StatusCodeEnum
 from enum import Enum
 from app.server.models.response_model_types import (
-    ErrorResponseModel,
+
     ResponseModel,
     # NewsSchema,
 )
@@ -27,10 +27,10 @@ async def post_repo_review(response: Response, req: ReviewSchema = Body(...)):
     repo = await mongo_client.get_repo(username,reponame)
     if not reviewer:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "User not found")
+        return ResponseModel([], "User not found")
     if not repo:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "Repository not found")
+        return ResponseModel([], "Repository not found")
 
     relation = neo_client.has_review(reviewer['_id'],repo['_id'])
     if not relation:
@@ -46,13 +46,17 @@ async def post_repo_review(response: Response, req: ReviewSchema = Body(...)):
                 return ResponseModel(new_review, "Successfully created new review")
             else:
                 response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-                return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
+
+                return ResponseModel([], "There was an error updating the review data")
+               
         else:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
+            return ResponseModel([], "There was an error updating the review data")
+           
     #TODO: change to apropiate response in failure
     response.status_code = status.HTTP_409_CONFLICT
-    return ErrorResponseModel("Conflict", 409, "Review already exists for this user in this repo")
+    return ResponseModel([], "Review already exists for this user in this repo")
+  
 
 @router.put("/{review_id}", response_description="Edit a review")
 async def edit_review(response: Response, review_id: str, req: UpdateReviewModel = Body(...)):
@@ -74,10 +78,9 @@ async def edit_review(response: Response, review_id: str, req: UpdateReviewModel
             return ResponseModel("Review update", "Review updated successfully")
         else:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
-    else:
+            return ResponseModel([], "There was an error updating the review data")
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "Review not found")
+        return ResponseModel([], "Review not found")
 
 @router.delete("/{review_id}", response_description="Delete review")
 async def post_repo_review(response: Response, review_id: str):
@@ -98,9 +101,10 @@ async def post_repo_review(response: Response, review_id: str):
 
         if not deleted_relation or not deleted_review or not updated_repo:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return ErrorResponseModel("An error ocurred", 500, "There was an error updating the review data")
+            return ResponseModel([], "There was an error updating the review data")
         else:
             return ResponseModel("Review delete", "Review deleted successfully")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
-        return ErrorResponseModel("Not found", 404, "Review not found")
+        return ResponseModel([], "Review not found")
+
