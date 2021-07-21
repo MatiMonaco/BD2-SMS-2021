@@ -13,4 +13,5 @@ config = {
     "SERVER_HOST": os.environ.get('SERVER_HOST'),
     "PORT": os.environ.get('PORT'),
     "GITHUB_API_TOKEN": os.environ.get('GITHUB_API_TOKEN'),
+    "PASSPHRASE": os.environ.get('PASSPHRASE')
 }

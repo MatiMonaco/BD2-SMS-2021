@@ -272,7 +272,6 @@ class MongoClient:
                                         "$size": {
                                             "$filter": {
                                                 "input": "$languages",
-                                                # "as": "lang",
                                                 "cond": {"$in": ["$$this",user_langs]}
                                             }
                                         }

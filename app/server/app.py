@@ -36,7 +36,11 @@ async def register(username: UsernameSchema, response: Response):
         return {"message": "Conflict"}
 
 @app.post("/populate_database", tags=["User register"])
-async def populate_database(response: Response):
+async def populate_database(passphrase:str,response: Response):
+    print("PASSPHRASE: "+str(config['PASSPHRASE']))
+    if passphrase != None and passphrase != config['PASSPHRASE']:
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return {"message": "Wrong passphrase"}
     g = Github(github_api_token)
     users = set()
  
