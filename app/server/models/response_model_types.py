@@ -10,10 +10,11 @@ def ResponseModel(data, message):
         "message": message,
     }
 
-def PaginatedResponseModel(data, page, limit, total_pages):
+def PaginatedResponseModel(data, page, limit, total_pages, total):
     return {
         "data": data,
         "page": page,
         "limit": limit,
-        "total_pages": total_pages
+        "total_pages": total_pages,
+        "total": total
     }
