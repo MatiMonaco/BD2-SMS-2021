@@ -173,8 +173,6 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
 @router.get("/{username}/recommended/users", response_description="Retrieves recommended users for specified user")
 async def get_recommended_users(response: Response, username: str, depth: int = 1, page: int = 1, limit: int = 10):
     user = await mongo_client.get_user(username)
-    # if depth > 3:
-        # depth = 3
     if user:
         recommended_ids = neo_client.get_recommended_users(user['_id'], depth=depth+1)
         print("base amount of users: " + str(len(recommended_ids)))
