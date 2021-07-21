@@ -8,3 +8,4 @@ requests
 pymongo[srv]
 pygithub
 python-dotenv
+gunicorn
