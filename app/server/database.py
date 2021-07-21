@@ -205,7 +205,7 @@ class MongoClient:
 
 
     #TODO: calcular max languajes coincidentes
-    async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, repo_rev_dict: dict, page: int, limit: int):
+    async def get_repos_recommendations_by_id(self, user: dict, repo_ids: list, page: int, limit: int):
         repos = []
         print(f"repo ids: {repo_ids}")
         total = await self.repos_collection.count_documents({"_id": {"$in": repo_ids}})
@@ -301,9 +301,6 @@ class MongoClient:
             repo['reviews_url'] = f"http://{server_host}:{server_port}/repos/{full_name[0]}/{full_name[1]}/reviews"     
             # print(f"updated at milis: {repo['updated_at_milis']}, div: {repo['updated_at_milis']/max_update}")
             # print(repo['aux'])
-            repo_review_ids = repo_rev_dict.get(repo['_id'])
-            
-            matches = len([lang for lang in user_langs if lang in repo['languages']])
 
             # date_ = repo['updated_at']
             # result = time.strptime(date_, "%Y-%m-%d %H:%M:%S")

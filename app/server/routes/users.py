@@ -157,16 +157,7 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
         recommended_ids = neo_client.get_recommended_repos(user['_id'], depth=depth+1)
     
         if recommended_ids:
-            repo_reviews_dict = {}
-            for repo_id in recommended_ids:
-                reviews = neo_client.get_reviews_for_repo(repo_id)
-                if not reviews:
-                    reviews = []
-                # print(reviews)
-                repo_reviews_dict[repo_id] = reviews
-            
-
-            repos, total_pages = await mongo_client.get_repos_recommendations_by_id(user,recommended_ids, repo_reviews_dict, page-1, limit)
+            repos, total_pages = await mongo_client.get_repos_recommendations_by_id(user,recommended_ids, page-1, limit)
             return PaginatedResponseModel(repos, page, limit, total_pages)
         else:
             return {
