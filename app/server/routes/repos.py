@@ -23,12 +23,11 @@ class RepoOrderBy(str, Enum):
 
 router = APIRouter()
 @router.get("/", response_description="Repos retrieved")
-async def get_repos(response : Response, order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10 ):
-    repos, total_pages = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
+async def get_repos(order_by: RepoOrderBy = RepoOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10 ):
+    repos, total_pages, total = await mongo_client.get_repos(order_by.value, asc, page-1,limit)
     if repos:
-        return PaginatedResponseModel(repos, page, limit, total_pages)
+        return PaginatedResponseModel(repos, page, limit, total_pages, total)
 
-    response.status_code = status.HTTP_204_NO_CONTENT    
     return ResponseModel([], "No content")
 
 @router.get("/{username}/{reponame}", response_description="Returns information asociated to the requested repository")
@@ -40,16 +39,14 @@ async def get_repo_by_name_and_username(response : Response, username: str, repo
     return ResponseModel([],"Repository not found")
 
 @router.get("/{username}/{reponame}/reviews", response_description="Retrieved reviews for requested repository")
-async def get_repo_reviews(response: Response, username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
+async def get_repo_reviews(username: str, reponame: str, order_by: ReviewOrderBy = ReviewOrderBy.created_at, asc: bool = False, page: int = 1, limit: int = 10):
     repo = await mongo_client.get_repo(username, reponame)
     if repo:
         repo_id = repo['_id']
-        # reviews, total_pages = await mongo_client.get_repos(page,limit)
         review_ids = neo_client.get_reviews_for_repo(repo_id)
         if review_ids:
             reviews,total_pages = await mongo_client.get_reviews(review_ids,order_by.value,asc,page-1,limit)
-            return PaginatedResponseModel(reviews,page,limit,total_pages)
-    response.status_code = status.HTTP_204_NO_CONTENT
+            return PaginatedResponseModel(reviews,page,limit,total_pages, len(review_ids))
     return ResponseModel([],  "No content")
 
 

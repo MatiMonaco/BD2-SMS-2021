@@ -5,7 +5,6 @@ from app.server.routes.reviews import router as ReviewsRouter
 from pydantic import BaseModel, Field
 from github import Github, GithubException
 from app.server.database import mongo_client, neo_client
-import json
 from app.config import config
 
 class UsernameSchema(BaseModel):
@@ -53,7 +52,6 @@ async def populate_database(response: Response):
         if count >= max_repos:
                 break
 
-   # ret = await add_user_rec(users, user,True,5,5, 0, 3)
   
     return {"message": f"Registered {count} users"}
 
@@ -88,14 +86,6 @@ async def add_user_rec(users, user, register,max_following,max_repos,curr_depth,
                     if curr_depth <= max_depth:
                         await mongo_client.insert_repo(repo_dict)
                         neo_client.create_ownership(user.id,repo_dict["github_repo_id"])
-                        # try:
-                        #     for i,contributor in enumerate(item.get_contributors()):
-                        #         if i > MAX_CONTRIBUTORS_PER_REPO:
-                        #             break
-                        #         neo_client.create_contribution(contributor.id,repo_dict["github_repo_id"])
-                        #         await add_user_rec(users,contributor,curr_depth+1,max_depth)
-                        # except GithubException as e:
-                        #     continue
 
             #add user to mongo
             if mongo_user:

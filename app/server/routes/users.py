@@ -27,10 +27,10 @@ class ReviewOrderBy(str, Enum):
 
 @router.get("/", response_description="Users retrieved")
 async def get_users(response: Response, order_by: UserOrderBy = UserOrderBy.followers, asc: bool = False, page: int = 1, limit: int = 10):
-    users, total_pages = await mongo_client.get_users(order_by.value, asc, page-1,limit)
+    users, total_pages, total = await mongo_client.get_users(order_by.value, asc, page-1,limit)
     if users:
-        return PaginatedResponseModel(users, page, limit, total_pages)
-    response.status_code = status.HTTP_204_NO_CONTENT
+        return PaginatedResponseModel(users, page, limit, total_pages, total)
+    # response.status_code = status.HTTP_204_NO_CONTENT
     return ResponseModel([], "No content")
 
 @router.get("/{username}", response_description="Username information")
@@ -50,12 +50,12 @@ async def get_following(response: Response, username: str, order_by: UserOrderBy
         followed_ids = neo_client.get_followed_users(user['_id'])
         if followed_ids:
             # get users by array of ids from mongo
-            users, total_pages = await mongo_client.get_users_by_id(followed_ids, order_by.value, asc, page-1, limit)
+            users, total_pages, total = await mongo_client.get_users_by_id(followed_ids, order_by.value, asc, page-1, limit)
 
             # return paginated response
-            return PaginatedResponseModel(users, page, limit, total_pages)
+            return PaginatedResponseModel(users, page, limit, total_pages, total)
         else:
-            response.status_code = status.HTTP_204_NO_CONTENT
+            # response.status_code = status.HTTP_204_NO_CONTENT
             return ResponseModel([], "No content")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
@@ -69,11 +69,11 @@ async def get_following(response : Response, username: str, order_by: UserOrderB
         followed_ids = neo_client.get_followed_by_users(user['_id'])
         if followed_ids:
             # get users by array of ids from mongo
-            users, total_pages = await mongo_client.get_users_by_id(followed_ids, order_by.value, asc, page-1, limit)
+            users, total_pages, total = await mongo_client.get_users_by_id(followed_ids, order_by.value, asc, page-1, limit)
             # return paginated response
-            return PaginatedResponseModel(users, page, limit, total_pages)
+            return PaginatedResponseModel(users, page, limit, total_pages, total)
         else:
-            response.status_code = status.HTTP_204_NO_CONTENT
+            # response.status_code = status.HTTP_204_NO_CONTENT
             return ResponseModel([], "No content")
     else:
         response.status_code = status.HTTP_404_NOT_FOUND
@@ -126,10 +126,10 @@ async def get_reviews(response : Response, username: str, order_by: ReviewOrderB
         review_ids = neo_client.get_reviews_for_user(user['_id'])
         if review_ids:
             # get reviews by array of ids from mongo
-            users, total_pages = await mongo_client.get_reviews_with_repo(review_ids, order_by.value, asc, page-1, limit)
+            users, total_pages, total = await mongo_client.get_reviews_with_repo(review_ids, order_by.value, asc, page-1, limit)
             # return paginated response
-            return PaginatedResponseModel(users, page, limit, total_pages)
-        response.status_code = status.HTTP_204_NO_CONTENT
+            return PaginatedResponseModel(users, page, limit, total_pages, total)
+        # response.status_code = status.HTTP_204_NO_CONTENT
         return ResponseModel([],  "No content")
     response.status_code = status.HTTP_404_NOT_FOUND
     return ResponseModel([], "User {} does not exist".format(username))
@@ -137,10 +137,10 @@ async def get_reviews(response : Response, username: str, order_by: ReviewOrderB
 
 @router.put("/{username}", response_description="Edit user")
 async def edit_user(response : Response, username: str, req: UpdateUserModel = Body(...)):
-    req = {k:v for k, v in req.dict().items() if v is not None}
+    request = {k:v for k, v in req.dict().items() if v is not None}
     user = await mongo_client.get_user(username)
     if user:
-        updated_user = await mongo_client.update_user(user["_id"], req)
+        updated_user = await mongo_client.update_user(user["_id"], request)
         if updated_user:
             return ResponseModel("User {} updated successfully".format(username), "User updated successfully")
         else:
@@ -157,8 +157,8 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
         recommended_ids = neo_client.get_recommended_repos(user['_id'], depth=depth+1)
     
         if recommended_ids:
-            repos, total_pages = await mongo_client.get_repos_recommendations_by_id(user,recommended_ids, page-1, limit)
-            return PaginatedResponseModel(repos, page, limit, total_pages)
+            repos, total_pages, total = await mongo_client.get_repos_recommendations_by_id(user,recommended_ids, page-1, limit)
+            return PaginatedResponseModel(repos, page, limit, total_pages, total)
         else:
             return {
                 "message": "No recommendations found", 
@@ -173,12 +173,14 @@ async def get_recommended_repos(response : Response, username: str, depth: int =
 @router.get("/{username}/recommended/users", response_description="Retrieves recommended users for specified user")
 async def get_recommended_users(response: Response, username: str, depth: int = 1, page: int = 1, limit: int = 10):
     user = await mongo_client.get_user(username)
+    # if depth > 3:
+        # depth = 3
     if user:
         recommended_ids = neo_client.get_recommended_users(user['_id'], depth=depth+1)
         print("base amount of users: " + str(len(recommended_ids)))
         if recommended_ids:
-            users, total_pages = await mongo_client.get_user_recommendations_by_id(user,recommended_ids, page-1, limit)
-            return PaginatedResponseModel(users, page, limit, total_pages)
+            users, total_pages, total = await mongo_client.get_user_recommendations_by_id(user,recommended_ids, page-1, limit)
+            return PaginatedResponseModel(users, page, limit, total_pages, total)
         else:
             return {"message": "No recommendations found", "most_followed_users_url": f"http://{server_host}:{server_port}/users/?order_by=followers&asc=false&page=1&limit=10"}
     response.status_code = status.HTTP_204_NO_CONTENT
